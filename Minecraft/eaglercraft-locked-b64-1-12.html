@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Password Required</title>
+<!-- LOCK-GAME SETTINGS
+PASSWORD_ENABLED: true
+SHOW_OPEN_IN_NEW_TAB_BANNER: true
+GENERATE_OPEN_IN_NEW_TAB_VERSION: true
+PASSWORD: supercoolpassword
+OUTPUT_FORMAT: locked-b64
+-->
+<script>
+// ========= LOCK SETTINGS (EDIT THESE) =========
+var LOCK_GAME_PROTOCOL_VERSION = "1";
+var LOCK_FILE_TYPE = "locked-b64";
+var PASSWORD = "supercoolpassword";
+var PASSWORD_ENABLED = true;
+var SHOW_OPEN_IN_NEW_TAB_BANNER = true;
+// ===============================================
+</script>
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+    font-family: Arial, sans-serif;
+  }
+  .password-box {
+    background: #16213e;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  .password-box h2 {
+    color: #e94560;
+    margin-top: 0;
+  }
+  .password-box input {
+    padding: 10px 16px;
+    font-size: 16px;
+    border: 2px solid #e94560;
+    border-radius: 6px;
+    background: #0f3460;
+    color: white;
+    outline: none;
+    width: 220px;
+  }
+  .password-box button {
+    padding: 10px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    background: #e94560;
+    color: white;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .password-box button:hover { background: #c73652; }
+  .error-msg { color: #e94560; margin-top: 12px; display: none; }
+</style>
+</head>
+<body>
+<!-- LOCK-BANNER START -->
+<div id="secretBar"
+     style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 48px;
+        background: linear-gradient(90deg, #4e54c8, #8f94fb);
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        z-index: 9999;
+     ">
+  <a href="#"
+     onclick="return lockBannerOpenCurrent(event);"
+     onmouseenter="lockBannerSetTextHover(this,true);"
+     onmouseleave="lockBannerSetTextHover(this,false);"
+     style="
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 168px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-decoration: none;
+        font-weight: bold;
+        z-index: 2;
+        transition: color 0.15s ease;
+     ">
+     Open in New Tab
+  </a>
+  <button type="button"
+          title="Toggle Fullscreen"
+          onclick="return lockBannerToggleFullscreen(event);"
+          onmouseenter="lockBannerSetHover(this,true);"
+          onmouseleave="lockBannerSetHover(this,false);"
+          style="
+             position: absolute;
+             right: 112px;
+             top: 0;
+             width: 56px;
+             height: 100%;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             font-size: 18px;
+             font-weight: bold;
+             color: white;
+             border: none;
+             background: transparent;
+             cursor: pointer;
+             z-index: 3;
+             user-select: none;
+             transition: color 0.15s ease, background-color 0.15s ease;
+          ">
+    &#x26F6;
+  </button>
+  <button type="button"
+          title="Legacy Open in New Tab method (can fail in some small web code editors)."
+          aria-label="Open in New Tab (legacy method)"
+          onclick="return lockBannerOpenLegacy(event);"
+          onmouseenter="lockBannerSetHover(this,true);"
+          onmouseleave="lockBannerSetHover(this,false);"
+          style="
+             position: absolute;
+             right: 56px;
+             top: 0;
+             width: 56px;
+             height: 100%;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             font-size: 20px;
+             font-weight: bold;
+             color: white;
+             border: none;
+             background: transparent;
+             cursor: pointer;
+             z-index: 3;
+             user-select: none;
+             transition: color 0.15s ease, background-color 0.15s ease;
+          ">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+  </button>
+  <button type="button"
+          title="Close Banner"
+          onclick="return lockBannerRemove(event);"
+          onmouseenter="lockBannerSetHover(this,true);"
+          onmouseleave="lockBannerSetHover(this,false);"
+          style="
+             position: absolute;
+             right: 0;
+             top: 0;
+             width: 56px;
+             height: 100%;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             font-size: 22px;
+             font-weight: bold;
+             color: white;
+             border: none;
+             background: transparent;
+             cursor: pointer;
+             z-index: 3;
+             user-select: none;
+             transition: color 0.15s ease, background-color 0.15s ease;
+          ">
+    &times;
+  </button>
+</div>
+<script>
+(function() {
+  if (window.__LOCK_BANNER_V4__) return;
+  window.__LOCK_BANNER_V4__ = true;
+
+  window.lockBannerSetTextHover = function(el, active) {
+    if (!el) return false;
+    el.style.color = active ? '#d8dcff' : 'white';
+    el.style.backgroundColor = 'transparent';
+    return false;
+  };
+
+  window.lockBannerSetHover = function(el, active) {
+    if (!el) return false;
+    el.style.color = active ? '#d8dcff' : 'white';
+    el.style.backgroundColor = active ? 'rgba(255,255,255,0.12)' : 'transparent';
+    return false;
+  };
+
+  window.lockBannerRemove = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var secretBar = document.getElementById('secretBar');
+    if (secretBar) secretBar.remove();
+    var frame = document.getElementById('gameFrame');
+    if (frame) { frame.style.top = '0'; frame.style.height = '100%'; }
+    return false;
+  };
+
+  window.lockBannerOpenCurrent = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var win = window.open('about:blank', '_blank');
+    if (!win) return false;
+    try { win.opener = null; } catch (err) {}
+    if (win.focus) win.focus();
+
+    var html;
+    var gameFrame = document.getElementById('gameFrame');
+    if (gameFrame && gameFrame.contentDocument) {
+      html = gameFrame.contentDocument.documentElement.outerHTML;
+    } else {
+      html = document.documentElement.outerHTML;
+      html = html.replace(
+        /<!--\s*LOCK-BANNER START\s*-->[\s\S]*?<!--\s*LOCK-BANNER END\s*-->/i,
+        ''
+      );
+    }
+
+    win.document.open();
+    win.document.write('<!DOCTYPE html>\n' + html);
+    win.document.close();
+    return false;
+  };
+
+  window.lockBannerOpenLegacy = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var href = window.location.href;
+    try {
+      var currentUrl = new URL(window.location.href);
+      var pathParts = currentUrl.pathname.split('/');
+      var fileName = pathParts[pathParts.length - 1];
+      if (!fileName && pathParts.length > 1) {
+        fileName = pathParts[pathParts.length - 2];
+      }
+      if (fileName) {
+        href = fileName + currentUrl.search + currentUrl.hash;
+      }
+    } catch (err) {}
+
+    var link = document.createElement('a');
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return false;
+  };
+
+  window.lockBannerToggleFullscreen = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(function() {});
+      return false;
+    }
+    var root = document.documentElement;
+    var request =
+      root.requestFullscreen ||
+      root.webkitRequestFullscreen ||
+      root.mozRequestFullScreen ||
+      root.msRequestFullscreen;
+    if (request) request.call(root);
+    return false;
+  };
+})();
+</script>
+<!-- LOCK-BANNER END -->
+<div class="password-box" id="passwordScreen">
+  <h2>Password Required</h2>
+  <div>
+    <input type="password" id="pwInput" placeholder="Enter password..." onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()">Go</button>
+  </div>
+  <p class="error-msg" id="errorMsg">Wrong password. Try again.</p>
+</div>
+<script>
+var REAL_PAGE_B64 = "PCFET0NUWVBFIGh0bWw+PGh0bWwgc3R5bGU9IndpZHRoOjEwMCU7aGVpZ2h0OjEwMCU7YmFja2dyb3VuZC1jb2xvcjpibGFjazsiPgo8aGVhZD4KICAgIAogICAgPHNjcmlwdCBhc3luYyBzcmM9Imh0dHBzOi8vd3d3Lmdvb2dsZXRhZ21hbmFnZXIuY29tL2d0YWcvanM/aWQ9Ry0iPjwvc2NyaXB0PgogICAgPHNjcmlwdD4KICAgICAgICB3aW5kb3cuZGF0YUxheWVyID0gd2luZG93LmRhdGFMYXllciB8fCBbXTsKCiAgICAgICAgZnVuY3Rpb24gZ3RhZygpIHsKICAgICAgICAgICAgZGF0YUxheWVyLnB1c2goYXJndW1lbnRzKTsKICAgICAgICB9CiAgICAgICAgZ3RhZygnanMnLCBuZXcgRGF0ZSgpKTsKICAgICAgICBndGFnKCdjb25maWcnLCAnRy0nKTsKICAgIDwvc2NyaXB0Pgo8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CjxtZXRhIGh0dHAtZXF1aXY9Im9yaWdpbi10cmlhbCIgY29udGVudD0iQXJOUFNGbTdnVkc5ODhFckJ1bFR1WjIxVk05c012TjRHOTBTZ1hYQ09PemYycmJZMFBMbUkvRFlrZ0VpRVpaeEMzeklxVUlmM05JbkhrWm9TdnV0eUFJQUFBQjdleUp2Y21sbmFXNGlPaUpvZEhSd2N6b3ZMMlZoWjJ4bGNtTnlZV1owTG1OdmJUbzBORE1pTENKbVpXRjBkWEpsSWpvaVYyVmlRWE56WlcxaWJIbEtVMUJ5YjIxcGMyVkpiblJsWjNKaGRHbHZiaUlzSW1WNGNHbHllU0k2TVRjME5EWTNOVEl3TUN3aWFYTlRkV0prYjIxaGFXNGlPblJ5ZFdWOSI+CjxtZXRhIGh0dHAtZXF1aXY9Im9yaWdpbi10cmlhbCIgY29udGVudD0iQTZuRWtrY085Ry93cWFtUFNNRTFkUG1rR0wvR3ZsTExQdVc4bEkxV0JCSFgvTENDdkpkTllBL25pY1NQdy85a0xFcXE5UVZ2NGcwU1FML3hkYlU4cDJvQUFBQjdleUp2Y21sbmFXNGlPaUpvZEhSd2N6b3ZMMlZoWjJ4bGNtTnlZV1owTG1OdmJUbzBORE1pTENKbVpXRjBkWEpsSWpvaVYyVmlRWE56WlcxaWJIbEtVMUJ5YjIxcGMyVkpiblJsWjNKaGRHbHZiaUlzSW1WNGNHbHllU0k2TVRjek9ERXpOVE13TkN3aWFYTlRkV0prYjIxaGFXNGlPblJ5ZFdWOSI+Cgo8bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLCBpbml0aWFsLXNjYWxlPTEuMCwgbWluaW11bS1zY2FsZT0xLjAsIG1heGltdW0tc2NhbGU9MS4wIj4KPHRpdGxlPk1pbmVjcmFmdCAxLjEyLjI8L3RpdGxlPgo8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCI+CndpbmRvdy5hZGRFdmVudExpc3RlbmVyKCJsb2FkIiwgZnVuY3Rpb24oKSB7CiAgaWYoKHR5cGVvZiBXZWJBc3NlbWJseSAhPT0gInVuZGVmaW5lZCIpICYmICh0eXBlb2YgV2ViQXNzZW1ibHkuU3VzcGVuZGluZyAhPT0gInVuZGVmaW5lZCIpKSB7CiAgICB0cnkgewogICAgICBpZigidHJ1ZSIgPT09IHdpbmRvdy5sb2NhbFN0b3JhZ2UuZ2V0SXRlbSgiaGlkZUVhZ2xlcldBU01BdmFpbGFibGUiKSkgewogICAgICAgIHJldHVybjsKICAgICAgfQogICAgfWNhdGNoKGV4KSB7CiAgICB9CiAgICB2YXIgZWwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiZWFnbGVyV0FTTUF2YWlsYWJsZSIpOwogICAgdmFyIGNoa2JveCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJlYWdsZXJXQVNNQXZhaWxhYmxlRG9udFNob3ciKTsKICAgIGZ1bmN0aW9uIGhhbmRsZURvbnRTaG93KCkgewogICAgICBpZihjaGtib3guY2hlY2tlZCkgewogICAgICAgIHRyeSB7CiAgICAgICAgICB3aW5kb3cubG9jYWxTdG9yYWdlLnNldEl0ZW0oImhpZGVFYWdsZXJXQVNNQXZhaWxhYmxlIiwgInRydWUiKTsKICAgICAgICB9Y2F0Y2goZXgpIHsKICAgICAgICB9CiAgICAgIH0KICAgIH0KICAgIGVsLnN0eWxlLmRpc3BsYXkgPSAiYmxvY2siOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImVhZ2xlcldBU01BdmFpbGFibGVZZXMiKS5hZGRFdmVudExpc3RlbmVyKCJjbGljayIsIGZ1bmN0aW9uKCkgewogICAgICBoYW5kbGVEb250U2hvdygpOwogICAgICBkb2N1bWVudC5sb2NhdGlvbi5ocmVmID0gImh0dHBzOi8vZWFnbGVyY3JhZnQuY29tL21jLzEuMTIuMi13YXNtLyI7CiAgICB9KTsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJlYWdsZXJXQVNNQXZhaWxhYmxlTm8iKS5hZGRFdmVudExpc3RlbmVyKCJjbGljayIsIGZ1bmN0aW9uKCkgewogICAgICBoYW5kbGVEb250U2hvdygpOwogICAgICBlbC5zdHlsZS5kaXNwbGF5ID0gIm5vbmUiOwogICAgfSk7CiAgfQp9KTsKPC9zY3JpcHQ+CjxzY3JpcHQgdHlwZT0idGV4dC9qYXZhc2NyaXB0Ij4Kd2luZG93LmRpc2FibGVVc2Vyc2NyaXB0cyA9IHRydWU7CndpbmRvdy5fX2VhZ2xlcmNyYWZ0TG9hZGVyQ2xpZW50ID0gewogIGNvbnRhaW5lcjogImdhbWVfZnJhbWUiLAogIG5hbWU6ICJFYWdsZXJjcmFmdCAxLjEyIiwKICBmaWxlOiAibmV0LnBleXRvbnBsYXl6NTg1LmVhZ2xlcmNyYWZ0LnYxXzEyLmNsaWVudCIsCiAgY2lkOiAiYmFmeWJlaWRybmNoeWVjaDdiMjZycWhtM3RheXQ3cDZteHZsMjNsemQ0ZjVtY3lxZGE3aGJyenlhbDQiLAogIHBhdGg6ICIiLAogIGRvd25sb2FkOiAiaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL2dlbml6eS9tY0BtYWluL2RhdGEvMS4xMi4yLmd6IiwKICBkbFNpemU6IDE1NjAxMzQxLAogIGd6aXA6IHRydWUKfTsKPC9zY3JpcHQ+CjxzY3JpcHQgdHlwZT0idGV4dC9qYXZhc2NyaXB0IiBzcmM9Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9nZW5penkvbWNAbWFpbi9zaGFyZWQvbG9hZGVyLmpzIj48L3NjcmlwdD4KPGxpbmsgdHlwZT0iaW1hZ2UvcG5nIiByZWw9InNob3J0Y3V0IGljb24iIGhyZWY9Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9nZW5penkvbWNAbWFpbi9zaGFyZWQvZ2FtZS5wbmciIC8+CjwvaGVhZD4KCjxzY3JpcHQ+CmRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoImNsaWNrIiwgZnVuY3Rpb24gb3Blbk9uY2UoKSB7CiAgICB3aW5kb3cub3BlbigiaW5kZXguaHRtbCIsICJfYmxhbmsiKTsKICAgIGRvY3VtZW50LnJlbW92ZUV2ZW50TGlzdGVuZXIoImNsaWNrIiwgb3Blbk9uY2UpOwp9KTsKPC9zY3JpcHQ+Cgo8Ym9keSBzdHlsZT0ibWFyZ2luOjBweDt3aWR0aDoxMDAlO2hlaWdodDoxMDAlO292ZXJmbG93OmhpZGRlbjtiYWNrZ3JvdW5kLWNvbG9yOndoaXRlOyI+CjxkaXYgaWQ9ImVhZ2xlcldBU01BdmFpbGFibGUiIHN0eWxlPSJkaXNwbGF5Om5vbmU7cG9zaXRpb246YWJzb2x1dGU7bGVmdDowcHg7dG9wOjBweDtyaWdodDowcHg7ei1pbmRleDoxMDAwOyI+CjxkaXYgc3R5bGU9Im1hcmdpbjphdXRvO21heC13aWR0aDo2NTBweDsiPgo8ZGl2IHN0eWxlPSJtYXJnaW46MjBweDtib3JkZXI6NXB4IGRvdWJsZSBibGFjaztwYWRkaW5nOjEwcHg7YmFja2dyb3VuZC1jb2xvcjp3aGl0ZTt0ZXh0LWFsaWduOmNlbnRlcjtmb250LWZhbWlseTpzYW5zLXNlcmlmO2ZvbnQtc2l6ZToxLjJlbTsiPgo8aDM+RWFnbGVyY3JhZnQgV2ViQXNzZW1ibHkgR0MgaXMgc3VwcG9ydGVkIG9uIHlvdXIgYnJvd3Nlciwgd291bGQgeW91IGxpa2UgdG8gdHJ5IGl0PzwvaDM+CjxwPlRoZSBuZXcgdmFyaWFudCBvZiBFYWdsZXJjcmFmdCBnZXRzIGFsbW9zdCA8Yj4yeCB0aGUgRlBTPC9iPiwgaG93ZXZlciBpdCBtYXkgY3Jhc2ggaWYgeW91ciBkZXZpY2UgZG9lc24ndCBoYXZlIGEgbG90IG9mIG1lbW9yeTwvcD4KPHA+WW91ciBleGlzdGluZyBzaW5nbGVwbGF5ZXIgd29ybGRzIHdpbGwgYmUgYXZhaWxhYmxlPC9wPgo8aDQ+PGlucHV0IHR5cGU9ImNoZWNrYm94IiBzdHlsZT0iem9vbToxLjU7IiBpZD0iZWFnbGVyV0FTTUF2YWlsYWJsZURvbnRTaG93Ij4gRG8gbm90IHNob3cgYWdhaW48L2g0Pgo8cD48YnV0dG9uIGlkPSJlYWdsZXJXQVNNQXZhaWxhYmxlWWVzIiBzdHlsZT0iem9vbToxLjU7Ij5Td2l0Y2ggdG8gV2ViQXNzZW1ibHkgdmVyc2lvbjwvYnV0dG9uPjwvcD4KPHA+PGJ1dHRvbiBpZD0iZWFnbGVyV0FTTUF2YWlsYWJsZU5vIiBzdHlsZT0iem9vbToxLjU7Ij5LZWVwIHVzaW5nIEphdmFTY3JpcHQgdmVyc2lvbjwvYnV0dG9uPjwvcD4KPC9kaXY+CjwvZGl2Pgo8L2Rpdj4KPGRpdiBpZD0iZ2FtZV9mcmFtZSIgc3R5bGU9IndpZHRoOjEwMCU7aGVpZ2h0OjEwMCU7Ij48L2Rpdj4KPC9ib2R5Pgo8L2h0bWw+";
+
+function getGameHtml() { return atob(REAL_PAGE_B64); }
+
+function removeBanner() {
+  var bar = document.getElementById('secretBar');
+  if (bar) bar.remove();
+  var frame = document.getElementById('gameFrame');
+  if (frame) { frame.style.top = '0'; frame.style.height = '100%'; }
+}
+
+function openRealPage() {
+  var wasFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  var html = getGameHtml();
+
+  if (wasFullscreen && SHOW_OPEN_IN_NEW_TAB_BANNER) {
+    // Fullscreen: load game in iframe to preserve fullscreen and keep banner
+    var pwScreen = document.getElementById('passwordScreen');
+    if (pwScreen) pwScreen.remove();
+    document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;height:100vh;background:#000;';
+    document.documentElement.style.cssText = 'margin:0;padding:0;height:100%;';
+    var oldStyles = document.head.querySelectorAll('style');
+    for (var i = 0; i < oldStyles.length; i++) oldStyles[i].remove();
+
+    var iframe = document.createElement('iframe');
+    iframe.id = 'gameFrame';
+    iframe.style.cssText = 'position:fixed;left:0;top:48px;width:100%;height:calc(100% - 48px);border:none;';
+    iframe.setAttribute('allowfullscreen', '');
+    document.body.appendChild(iframe);
+    var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(html);
+    iframeDoc.close();
+  } else {
+    // Normal: replace entire document, remove banner
+    removeBanner();
+    document.open();
+    document.write(html);
+    document.close();
+  }
+}
+
+function checkPw() {
+  if (!PASSWORD_ENABLED) {
+    openRealPage();
+    return;
+  }
+
+  var input = document.getElementById('pwInput').value;
+  if (input === PASSWORD) {
+    openRealPage();
+  } else {
+    document.getElementById('errorMsg').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+  }
+}
+
+if (!SHOW_OPEN_IN_NEW_TAB_BANNER) {
+  removeBanner();
+}
+
+if (!PASSWORD_ENABLED) {
+  var passwordScreen = document.getElementById('passwordScreen');
+  if (passwordScreen) passwordScreen.style.display = 'none';
+  openRealPage();
+}
+</script>
+</body>
+</html>

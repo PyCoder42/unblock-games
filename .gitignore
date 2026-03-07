@@ -1,0 +1,7 @@
+.DS_Store
+*.zip
+My_Project_*.json
+node_modules/
+/tmp/
+*.log
+.tmp.*/

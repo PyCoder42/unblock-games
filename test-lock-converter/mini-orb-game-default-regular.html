@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Orb Game</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #0a1a2e 0%, #123c5c 100%);
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .frame { text-align: center; }
+    canvas {
+      border: 2px solid #9bd3ff;
+      border-radius: 8px;
+      background: #05101d;
+    }
+    .hint { margin-top: 8px; font-size: 14px; opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <canvas id="game" width="480" height="320"></canvas>
+    <div class="hint">Move with arrow keys or WASD. Collect yellow orbs.</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const keys = Object.create(null);
+
+    const state = {
+      mode: 'play',
+      player: { x: 240, y: 160, r: 12, speed: 170 },
+      orb: { x: 100, y: 120, r: 8 },
+      score: 0,
+      elapsed: 0
+    };
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function placeOrb() {
+      state.orb.x = rand(20, canvas.width - 20);
+      state.orb.y = rand(20, canvas.height - 20);
+    }
+
+    function update(dt) {
+      const p = state.player;
+      let dx = 0;
+      let dy = 0;
+
+      if (keys.ArrowLeft || keys.a || keys.A) dx -= 1;
+      if (keys.ArrowRight || keys.d || keys.D) dx += 1;
+      if (keys.ArrowUp || keys.w || keys.W) dy -= 1;
+      if (keys.ArrowDown || keys.s || keys.S) dy += 1;
+
+      if (dx !== 0 || dy !== 0) {
+        const mag = Math.hypot(dx, dy);
+        dx /= mag;
+        dy /= mag;
+      }
+
+      p.x += dx * p.speed * dt;
+      p.y += dy * p.speed * dt;
+
+      p.x = Math.max(p.r, Math.min(canvas.width - p.r, p.x));
+      p.y = Math.max(p.r, Math.min(canvas.height - p.r, p.y));
+
+      const dist = Math.hypot(p.x - state.orb.x, p.y - state.orb.y);
+      if (dist <= p.r + state.orb.r) {
+        state.score += 1;
+        placeOrb();
+      }
+
+      state.elapsed += dt;
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      g.addColorStop(0, '#0f2940');
+      g.addColorStop(1, '#07111f');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(state.orb.x, state.orb.y, state.orb.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#72f1b8';
+      ctx.beginPath();
+      ctx.arc(state.player.x, state.player.y, state.player.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '16px Arial';
+      ctx.fillText('Score: ' + state.score, 12, 24);
+    }
+
+    function frame(ts) {
+      if (!frame.lastTs) frame.lastTs = ts;
+      const dt = Math.min(0.033, (ts - frame.lastTs) / 1000);
+      frame.lastTs = ts;
+      update(dt);
+      render();
+      requestAnimationFrame(frame);
+    }
+
+    window.advanceTime = function(ms) {
+      const steps = Math.max(1, Math.round(ms / (1000 / 60)));
+      for (let i = 0; i < steps; i++) update(1 / 60);
+      render();
+    };
+
+    window.render_game_to_text = function() {
+      return JSON.stringify({
+        coordinateSystem: { origin: 'top-left', x: 'right+', y: 'down+' },
+        mode: state.mode,
+        player: { x: Number(state.player.x.toFixed(2)), y: Number(state.player.y.toFixed(2)), r: state.player.r },
+        orb: { x: Number(state.orb.x.toFixed(2)), y: Number(state.orb.y.toFixed(2)), r: state.orb.r },
+        score: state.score,
+        elapsedSeconds: Number(state.elapsed.toFixed(2))
+      });
+    };
+
+    window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+    render();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

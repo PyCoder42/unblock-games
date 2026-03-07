@@ -1,0 +1,878 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokemon Showdown</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+  <meta name="robots" content="noindex" />
+  <link rel="shortcut icon" href="" id="dynamic-favicon" />
+  <link rel="icon" sizes="256x256" href="" id="dynamic-favicon-256" />
+  <style>
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+    body { background: #dde8f5; font-family: Arial, sans-serif; }
+    .mainmessage { line-height: 1.35; }
+    .boot-error {
+      margin: 16px auto;
+      max-width: 980px;
+      background: #2a1b28;
+      color: #ffe8f5;
+      border: 1px solid #d67fb4;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .boot-error strong { color: #ffd4ef; }
+    .boot-error .field-label {
+      display: block;
+      margin: 10px 0 4px;
+      font-weight: bold;
+      color: #ffd4ef;
+    }
+    .boot-error input {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 6px;
+      border: 1px solid #7a5270;
+      background: #1a1118;
+      color: #ffe8f5;
+      font-size: 14px;
+      padding: 8px 10px;
+    }
+    .boot-error .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .boot-error button {
+      border: 1px solid #7a5270;
+      background: #4e2f48;
+      color: #ffe8f5;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .boot-error button:hover { background: #62405b; }
+    .boot-error details {
+      margin-top: 12px;
+      border-top: 1px dashed #7a5270;
+      padding-top: 10px;
+    }
+    .boot-error pre {
+      margin: 8px 0 0;
+      max-height: 280px;
+      overflow: auto;
+      background: #130d13;
+      border: 1px solid #5f3e57;
+      border-radius: 6px;
+      padding: 8px;
+      font-family: Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: #ffdff3;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .boot-warning {
+      margin: 16px auto;
+      max-width: 980px;
+      background: #2c2a15;
+      color: #fff6cf;
+      border: 1px solid #b8a75f;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .boot-warning strong { color: #fff7d8; }
+  </style>
+  <script>
+    // Optional proxy target values.
+    // Set PS_PROXY_ORIGIN to your externally reachable proxy host, for example:
+    //   https://your-random-host.example
+    // The launcher avoids localhost/IP defaults because those are often blocked.
+    var PS_PROXY_ORIGIN = '';
+    var PS_PROXY_PATH = '/ps';
+    var PS_PROXY_WS_PATH = '/showdown';
+    var PS_PROXY_CANDIDATES = [];
+    var PS_DISABLE_DIRECT_FALLBACK = false;
+  </script>
+</head>
+<body>
+  <div id="header" class="header">
+    <img class="logo" id="ps-logo"
+         src=""
+         alt="Pokemon Showdown"
+         width="146"
+         height="44" />
+    <div class="maintabbarbottom"></div>
+  </div>
+
+  <div class="ps-room scrollable" id="mainmenu">
+    <div class="mainmenuwrapper">
+      <div class="leftmenu">
+        <div class="activitymenu">
+          <div class="pmbox">
+            <div class="pm-window news-embed">
+              <h3>
+                <button class="closebutton" tabindex="-1" aria-label="Close"><i class="fa fa-times-circle"></i></button>
+                <button class="minimizebutton" tabindex="-1" aria-label="Minimize"><i class="fa fa-minus-circle"></i></button>
+                Latest News
+              </h3>
+              <div class="pm-log" style="max-height:none">
+                <div class="newsentry">
+                  <h4>Pokemon Showdown</h4>
+                  <p>Single-file launcher with proxy fallback and startup diagnostics.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mainmenu">
+          <div id="loading-message" class="mainmessage">
+            Initializing...
+            <noscript>FAILED<br /><br />Pokemon Showdown requires JavaScript.</noscript>
+          </div>
+        </div>
+      </div>
+      <div class="rightmenu"></div>
+      <div class="mainmenufooter">
+        <small>
+          <a href="https://dex.pokemonshowdown.com/" target="_blank" rel="noopener noreferrer">Pokedex</a> |
+          <a href="https://replay.pokemonshowdown.com/" target="_blank" rel="noopener noreferrer">Replays</a> |
+          <a href="https://pokemonshowdown.com/rules" target="_blank" rel="noopener noreferrer">Rules</a> |
+          <a href="https://pokemonshowdown.com/credits" target="_blank" rel="noopener noreferrer">Credits</a>
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var LM = document.getElementById('loading-message');
+      var failures = [];
+      var warnings = [];
+      var diagnostics = { candidates: [], selected: null };
+      var candidateHealth = Object.create(null);
+      var STORAGE_PROXY_KEY = 'pokemonShowdownProxyOrigin';
+      var STORAGE_WS_PATH_KEY = 'pokemonShowdownProxyWsPath';
+
+      var STYLE_ASSETS = [
+        'style/battle.css',
+        'style/client.css',
+        'style/sim-types.css',
+        'style/utilichart.css',
+        'style/font-awesome.css'
+      ];
+
+      var LIB_ASSETS = [
+        'js/lib/jquery-2.2.4.min.js',
+        'js/lib/jquery-cookie.js',
+        'js/lib/autoresize.jquery.min.js',
+        'js/battle-sound.js',
+        'js/lib/html-css-sanitizer-minified.js',
+        'js/lib/lodash.core.js',
+        'js/lib/backbone.js',
+        'js/lib/d3.v3.min.js'
+      ];
+
+      var DATA_ASSETS = [
+        'js/battledata.js',
+        'js/storage.js',
+        'data/pokedex-mini.js',
+        'data/typechart.js',
+        'js/battle.js',
+        'js/lib/sockjs-1.4.0-nwjsfix.min.js',
+        'js/lib/color-thief.min.js'
+      ];
+
+      var CLIENT_ASSETS = [
+        'data/commands.js',
+        'js/client.js',
+        'js/client-topbar.js',
+        'js/client-mainmenu.js',
+        'js/client-teambuilder.js',
+        'js/client-ladder.js',
+        'js/client-chat.js',
+        'js/client-chat-tournament.js',
+        'js/battle-tooltips.js',
+        'js/client-battle.js',
+        'js/client-rooms.js',
+        'data/graphics.js',
+        'data/pokedex.js',
+        'data/moves.js',
+        'data/items.js',
+        'data/abilities.js',
+        'data/search-index.js',
+        'data/teambuilder-tables.js',
+        'js/battle-dex-search.js',
+        'js/search.js'
+      ];
+
+      function safeText(s) {
+        return String(s || '').replace(/[&<>"']/g, function (ch) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+      }
+
+      function setStatus(text) {
+        if (!LM) return;
+        LM.innerHTML = safeText(text).replace(/\n/g, '<br />');
+      }
+
+      function normalizePath(pathValue, defaultPath) {
+        var p = String(pathValue || '').trim();
+        if (!p) p = String(defaultPath || '').trim();
+        if (!p) return '';
+        if (p.charAt(0) !== '/') p = '/' + p;
+        return p.replace(/\/+$/, '');
+      }
+
+      function normalizeWsPath(rawPath) {
+        return normalizePath(rawPath, '/showdown') || '/showdown';
+      }
+
+      function hasScheme(value) {
+        return /^[a-z][a-z0-9+.-]*:/i.test(String(value || ''));
+      }
+
+      function looksLikeHostReference(value) {
+        var raw = String(value || '').trim();
+        if (!raw) return false;
+        var hostPart = raw.split('/')[0];
+        if (!hostPart) return false;
+        hostPart = hostPart.replace(/^\[|\]$/g, '').toLowerCase();
+        if (!hostPart) return false;
+        if (hostPart === 'localhost' || hostPart.endsWith('.localhost') || hostPart.endsWith('.local')) return true;
+        if (isIpv4(hostPart)) return true;
+        if (hostPart.indexOf('.') !== -1) return true;
+        if (/:[0-9]+$/.test(hostPart)) return true;
+        return false;
+      }
+
+      function preprocessPossibleProxyUrl(raw) {
+        var text = String(raw || '').trim();
+        if (!text) return '';
+        if (text.indexOf('//') === 0) {
+          text = location.protocol + text;
+        } else if (!hasScheme(text) && looksLikeHostReference(text)) {
+          text = 'http://' + text;
+        }
+        return text;
+      }
+
+      function normalizeProxyOriginInput(raw) {
+        var prepared = preprocessPossibleProxyUrl(raw);
+        if (!prepared) return '';
+        var u;
+        try {
+          u = new URL(prepared);
+        } catch (_err) {
+          return '';
+        }
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+        return u.origin;
+      }
+
+      function escapeRegex(s) {
+        return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function normalizeBaseUrl(raw, defaultPath) {
+        if (!raw) return '';
+        var u;
+        try {
+          u = new URL(preprocessPossibleProxyUrl(raw), location.href);
+        } catch (e) {
+          return '';
+        }
+
+        if (!u.protocol || (u.protocol !== 'https:' && u.protocol !== 'http:')) {
+          return '';
+        }
+
+        var path = (u.pathname || '/').replace(/\/+$/, '');
+        var normalizedDefaultPath = normalizePath(defaultPath, '');
+        if (normalizedDefaultPath) {
+          var pathRegex = new RegExp(escapeRegex(normalizedDefaultPath) + '$', 'i');
+          if (!pathRegex.test(path)) {
+            path = (path || '') + normalizedDefaultPath;
+          }
+        }
+
+        if (!path) path = '/';
+        return u.origin + path;
+      }
+
+      function joinUrl(base, relPath) {
+        return base.replace(/\/+$/, '') + '/' + relPath.replace(/^\/+/, '');
+      }
+
+      function isIpv4(hostname) {
+        return /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname || '');
+      }
+
+      function isLikelyLocalProxy(base) {
+        try {
+          var u = new URL(base);
+          var host = String(u.hostname || '').toLowerCase();
+          if (!host) return false;
+          if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0') return true;
+          if (host === '127.0.0.1' || host === '::1' || host === '[::1]') return true;
+          if (isIpv4(host)) return true;
+        } catch (_e) {
+          return false;
+        }
+        return false;
+      }
+
+      function addCandidate(list, seen, candidate) {
+        if (!candidate || !candidate.base) return;
+        var key = [candidate.base, candidate.mode || '', candidate.wsPath || ''].join('|');
+        if (seen[key]) return;
+        seen[key] = true;
+        list.push(candidate);
+      }
+
+      function getCandidateState(index) {
+        if (!candidateHealth[index]) {
+          candidateHealth[index] = { failures: 0, dead: false, reason: '' };
+        }
+        return candidateHealth[index];
+      }
+
+      function noteCandidateFailure(index, assetPath, errorText) {
+        var state = getCandidateState(index);
+        state.failures += 1;
+        if (assetPath === 'config/config.js' || state.failures >= 2) {
+          state.dead = true;
+          state.reason = assetPath + ': ' + errorText;
+        }
+      }
+
+      function noteCandidateSuccess(index) {
+        var state = getCandidateState(index);
+        state.failures = 0;
+        state.dead = false;
+        state.reason = '';
+      }
+
+      function readStorage(key) {
+        try {
+          return localStorage.getItem(key) || '';
+        } catch (_err) {
+          return '';
+        }
+      }
+
+      function writeStorage(key, value) {
+        try {
+          if (!value) {
+            localStorage.removeItem(key);
+          } else {
+            localStorage.setItem(key, value);
+          }
+        } catch (_err) {
+          // Ignore storage failures in restricted browsers.
+        }
+      }
+
+      function parsePairs(rawText) {
+        var out = Object.create(null);
+        var text = String(rawText || '').replace(/^#/, '').trim();
+        if (!text) return out;
+        var parts = text.split('&');
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i];
+          if (!part) continue;
+          var eq = part.indexOf('=');
+          var k = eq >= 0 ? part.slice(0, eq) : part;
+          var v = eq >= 0 ? part.slice(eq + 1) : '';
+          try {
+            k = decodeURIComponent(k);
+            v = decodeURIComponent(v);
+          } catch (_err) {
+            // Keep raw values if decoding fails.
+          }
+          out[k] = v;
+        }
+        return out;
+      }
+
+      function shouldUseSameOriginProxyFallback(params, hashPairs) {
+        if (params.get('allowSameOriginProxy') === '1' || hashPairs.allowSameOriginProxy === '1') {
+          return true;
+        }
+        if (!location.origin || location.origin === 'null') return false;
+
+        try {
+          var u = new URL(location.href);
+          var host = String(u.hostname || '').toLowerCase();
+          if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;
+          if (isIpv4(host)) return true;
+        } catch (_err) {
+          // Ignore URL parsing issues and fall through.
+        }
+
+        return /pokemon[-_ ]?showdown/i.test(location.pathname || '');
+      }
+
+      function pushProxyCandidate(list, seen, rawBase, label, wsPath, localAllowed) {
+        var normalized = normalizeBaseUrl(rawBase, PS_PROXY_PATH || '/ps');
+        if (!normalized) return;
+
+        var allowLocal = !!localAllowed;
+        if (!allowLocal && isLikelyLocalProxy(normalized)) {
+          warnings.push('Skipped local proxy candidate (' + label + '): ' + normalized);
+          return;
+        }
+
+        addCandidate(list, seen, {
+          base: normalized,
+          mode: 'proxy',
+          label: label,
+          wsPath: normalizeWsPath(wsPath)
+        });
+      }
+
+      function getCandidates() {
+        var params = new URLSearchParams(location.search);
+        var hashPairs = parsePairs(location.hash);
+        var list = [];
+        var seen = Object.create(null);
+        var allowLocal = params.get('allowLocalProxy') === '1' || hashPairs.allowLocalProxy === '1';
+
+        var queryProxy = params.get('proxy') || params.get('proxyOrigin') || '';
+        var hashProxy = hashPairs.proxy || hashPairs.proxyOrigin || '';
+        var storedProxy = readStorage(STORAGE_PROXY_KEY);
+        var configuredProxy = String(PS_PROXY_ORIGIN || '').trim();
+        var queryWsPath = params.get('wsPath') || hashPairs.wsPath || readStorage(STORAGE_WS_PATH_KEY) || PS_PROXY_WS_PATH || '/showdown';
+
+        pushProxyCandidate(list, seen, queryProxy, 'query proxy', queryWsPath, allowLocal);
+        pushProxyCandidate(list, seen, hashProxy, 'hash proxy', queryWsPath, allowLocal);
+        pushProxyCandidate(list, seen, storedProxy, 'saved proxy', queryWsPath, allowLocal);
+        pushProxyCandidate(list, seen, configuredProxy, 'configured proxy', queryWsPath, allowLocal);
+
+        if (Array.isArray(PS_PROXY_CANDIDATES)) {
+          for (var i = 0; i < PS_PROXY_CANDIDATES.length; i++) {
+            pushProxyCandidate(list, seen, PS_PROXY_CANDIDATES[i], 'proxy list #' + (i + 1), queryWsPath, allowLocal);
+          }
+        }
+
+        if (location.origin && location.origin !== 'null' && shouldUseSameOriginProxyFallback(params, hashPairs)) {
+          pushProxyCandidate(list, seen, location.origin, 'same-origin /ps', queryWsPath, allowLocal);
+          pushProxyCandidate(list, seen, location.origin + '/pokemon-showdown', 'same-origin /pokemon-showdown/ps', queryWsPath, allowLocal);
+          pushProxyCandidate(list, seen, location.origin + '/pokemon-showdown-proxy', 'same-origin /pokemon-showdown-proxy/ps', queryWsPath, allowLocal);
+
+          var currentDir = location.origin + location.pathname.replace(/\/[^/]*$/, '/');
+          pushProxyCandidate(list, seen, currentDir, 'same-directory /ps', queryWsPath, allowLocal);
+        } else if (location.origin && location.origin !== 'null') {
+          warnings.push('Skipped same-origin proxy fallback for this host: ' + location.origin);
+        }
+
+        if (!PS_DISABLE_DIRECT_FALLBACK) {
+          addCandidate(list, seen, {
+            base: 'https://play.pokemonshowdown.com',
+            mode: 'direct',
+            label: 'official direct',
+            wsPath: '/showdown'
+          });
+        }
+
+        diagnostics.candidates = list.slice();
+        return list;
+      }
+
+      function loadScriptOnce(url, timeoutMs) {
+        return new Promise(function (resolve, reject) {
+          var done = false;
+          var s = document.createElement('script');
+          var timer = setTimeout(function () {
+            if (done) return;
+            done = true;
+            if (s && s.parentNode) s.parentNode.removeChild(s);
+            reject(new Error('timeout'));
+          }, timeoutMs || 15000);
+
+          s.src = url;
+          s.async = false;
+
+          s.onload = function () {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            resolve();
+          };
+
+          s.onerror = function () {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            if (s && s.parentNode) s.parentNode.removeChild(s);
+            reject(new Error('load error'));
+          };
+
+          document.head.appendChild(s);
+        });
+      }
+
+      function loadStyleOnce(url, timeoutMs) {
+        return new Promise(function (resolve, reject) {
+          var done = false;
+          var l = document.createElement('link');
+          var timer = setTimeout(function () {
+            if (done) return;
+            done = true;
+            if (l && l.parentNode) l.parentNode.removeChild(l);
+            reject(new Error('timeout'));
+          }, timeoutMs || 15000);
+
+          l.rel = 'stylesheet';
+          l.href = url;
+
+          l.onload = function () {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            resolve();
+          };
+
+          l.onerror = function () {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            if (l && l.parentNode) l.parentNode.removeChild(l);
+            reject(new Error('load error'));
+          };
+
+          document.head.appendChild(l);
+        });
+      }
+
+      async function loadWithFallback(assetPath, kind, candidates, preferredIndex) {
+        var preferredOrder = [];
+        if (typeof preferredIndex === 'number' && candidates[preferredIndex] && !getCandidateState(preferredIndex).dead) {
+          preferredOrder.push(preferredIndex);
+        }
+
+        for (var i = 0; i < candidates.length; i++) {
+          if (preferredOrder.indexOf(i) !== -1) continue;
+          if (getCandidateState(i).dead) continue;
+          preferredOrder.push(i);
+        }
+
+        if (!preferredOrder.length) {
+          for (var x = 0; x < candidates.length; x++) preferredOrder.push(x);
+        }
+
+        var lastErr = null;
+        for (var j = 0; j < preferredOrder.length; j++) {
+          var idx = preferredOrder[j];
+          var cand = candidates[idx];
+          var url = joinUrl(cand.base, assetPath);
+
+          try {
+            if (kind === 'style') {
+              await loadStyleOnce(url, 15000);
+            } else {
+              await loadScriptOnce(url, 15000);
+            }
+            noteCandidateSuccess(idx);
+            diagnostics.selected = cand;
+            return idx;
+          } catch (err) {
+            lastErr = err;
+            var errText = err && err.message ? err.message : String(err);
+            noteCandidateFailure(idx, assetPath, errText);
+            failures.push({
+              asset: assetPath,
+              url: url,
+              error: errText,
+              candidate: cand.label
+            });
+          }
+        }
+
+        throw new Error('Failed to load ' + assetPath + (lastErr ? ' (' + lastErr.message + ')' : ''));
+      }
+
+      function configureServer(candidate) {
+        Config.testclient = true;
+        window.POKEMON_SHOWDOWN_TESTCLIENT_KEY = '0';
+        writeStorage('showdown_testclient_key', '0');
+
+        if (candidate.mode === 'proxy') {
+          var u = new URL(candidate.base);
+          var port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
+          var wsPath = normalizeWsPath(candidate.wsPath || PS_PROXY_WS_PATH || '/showdown');
+
+          Config.server = {
+            id: 'showdown',
+            host: u.hostname,
+            port: port,
+            httpport: port,
+            altport: port,
+            registered: true
+          };
+          Config.sockjsprefix = wsPath;
+          writeStorage(STORAGE_PROXY_KEY, u.origin);
+          writeStorage(STORAGE_WS_PATH_KEY, wsPath);
+        } else {
+          Config.server = Config.defaultserver;
+          Config.sockjsprefix = '/showdown';
+        }
+      }
+
+      function setBrandAssets(candidate) {
+        var favicon = joinUrl(candidate.base, 'favicon.ico');
+        var favicon256 = joinUrl(candidate.base, 'favicon-256.png');
+        var logo = joinUrl(candidate.base, 'pokemonshowdownbeta.png');
+
+        var icon = document.getElementById('dynamic-favicon');
+        var icon256 = document.getElementById('dynamic-favicon-256');
+        var img = document.getElementById('ps-logo');
+
+        if (icon) icon.href = favicon;
+        if (icon256) icon256.href = favicon256;
+        if (img) img.src = logo;
+      }
+
+      function applyProxyAndReload(proxyOrigin, wsPath) {
+        var proxy = normalizeProxyOriginInput(proxyOrigin);
+        if (!proxy) return;
+
+        writeStorage(STORAGE_PROXY_KEY, proxy);
+        if (wsPath) writeStorage(STORAGE_WS_PATH_KEY, normalizeWsPath(wsPath));
+        location.reload();
+      }
+
+      function showWarning(text) {
+        var panel = document.createElement('div');
+        panel.className = 'boot-warning';
+        panel.textContent = text;
+        var target = document.querySelector('.mainmenu');
+        if (target) {
+          target.appendChild(panel);
+        } else {
+          document.body.appendChild(panel);
+        }
+      }
+
+      function showFatal(errorText, candidates) {
+        setStatus('Startup failed.');
+
+        var tried = failures.map(function (f) {
+          return '- [' + f.candidate + '] ' + f.asset + ' -> ' + f.url + ' (' + f.error + ')';
+        }).join('\n');
+
+        var candidateLines = candidates.map(function (c) {
+          var suffix = c.mode === 'proxy' ? ' (ws ' + normalizeWsPath(c.wsPath) + ')' : '';
+          return '- ' + c.label + ': ' + c.base + suffix;
+        }).join('\n');
+
+        var candidateHealthText = candidates.map(function (_c, idx) {
+          var state = getCandidateState(idx);
+          var note = state.dead ? 'dead' : 'active';
+          if (state.reason) note += ' (' + state.reason + ')';
+          return '- [' + idx + '] ' + note;
+        }).join('\n');
+
+        var warnText = warnings.join('\n');
+
+        var panel = document.createElement('div');
+        panel.className = 'boot-error';
+
+        var title = document.createElement('strong');
+        title.textContent = 'Pokemon Showdown failed to load.';
+        panel.appendChild(title);
+
+        var body = document.createElement('div');
+        body.textContent = '\n\nError: ' + String(errorText || 'Unknown startup error');
+        panel.appendChild(body);
+
+        var label = document.createElement('label');
+        label.className = 'field-label';
+        label.textContent = 'Proxy origin to retry (must be a reachable host, not localhost/IP):';
+        panel.appendChild(label);
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'https://your-random-proxy-host.example';
+        input.value = readStorage(STORAGE_PROXY_KEY) || String(PS_PROXY_ORIGIN || '');
+        panel.appendChild(input);
+
+        var actions = document.createElement('div');
+        actions.className = 'actions';
+
+        var retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.textContent = 'Retry With Proxy';
+        retryBtn.onclick = function () {
+          var normalizedProxy = normalizeProxyOriginInput(input.value);
+          if (!normalizedProxy) {
+            showWarning('Proxy format is invalid. Use a full host, for example: http://A-MacBook-Pro.local:8787');
+            return;
+          }
+          applyProxyAndReload(normalizedProxy, readStorage(STORAGE_WS_PATH_KEY) || PS_PROXY_WS_PATH || '/showdown');
+        };
+        actions.appendChild(retryBtn);
+
+        var directBtn = document.createElement('button');
+        directBtn.type = 'button';
+        directBtn.textContent = 'Try Official Direct';
+        directBtn.onclick = function () {
+          var nextUrl = new URL(location.href);
+          nextUrl.searchParams.delete('proxy');
+          location.href = nextUrl.toString();
+        };
+        actions.appendChild(directBtn);
+
+        var clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.textContent = 'Clear Saved Proxy';
+        clearBtn.onclick = function () {
+          writeStorage(STORAGE_PROXY_KEY, '');
+          writeStorage(STORAGE_WS_PATH_KEY, '');
+          input.value = '';
+        };
+        actions.appendChild(clearBtn);
+
+        panel.appendChild(actions);
+
+        var details = document.createElement('details');
+        details.open = true;
+        var summary = document.createElement('summary');
+        summary.textContent = 'Diagnostics';
+        details.appendChild(summary);
+
+        var pre = document.createElement('pre');
+        pre.textContent = [
+          'Candidates tried:',
+          candidateLines || '- none',
+          '',
+          'Load failures:',
+          tried || '- none',
+          '',
+          'Candidate health:',
+          candidateHealthText || '- none',
+          '',
+          'Warnings:',
+          warnText || '- none',
+          '',
+          'Tips:',
+          '- Use a proxy host that is reachable from the same network as this page.',
+          '- The proxy must expose /ps/* and /showdown/* routes.',
+          '- Add ?proxy=https://your-host.example to this page URL to pin a host.'
+        ].join('\n');
+        details.appendChild(pre);
+
+        panel.appendChild(details);
+
+        var target = document.querySelector('.mainmenu');
+        if (target) {
+          target.appendChild(panel);
+        } else {
+          document.body.appendChild(panel);
+        }
+      }
+
+      function installRuntimeErrorHooks() {
+        window.addEventListener('error', function (event) {
+          failures.push({
+            asset: 'runtime',
+            url: String(event.filename || ''),
+            error: String(event.message || 'unknown runtime error'),
+            candidate: 'runtime'
+          });
+        });
+
+        window.addEventListener('unhandledrejection', function (event) {
+          failures.push({
+            asset: 'promise',
+            url: '',
+            error: String(event.reason || 'unhandled rejection'),
+            candidate: 'runtime'
+          });
+        });
+      }
+
+      function scheduleSocketHealthCheck() {
+        setTimeout(function () {
+          if (!window.app || !window.app.socket || window.app.socket.readyState !== 1) {
+            var selected = diagnostics.selected;
+            var selectedText = selected ? selected.label + ' (' + selected.base + ')' : 'unknown source';
+            showWarning(
+              'Connection warning: client loaded but socket is not open.\n' +
+              'Active source: ' + selectedText + '\n\n' +
+              'This usually means websocket traffic is blocked for this host/path.\n' +
+              'Use ?proxy=https://your-proxy-host.example and ensure ws path ' + normalizeWsPath(PS_PROXY_WS_PATH) + ' is routed.'
+            );
+          }
+        }, 22000);
+      }
+
+      async function boot() {
+        installRuntimeErrorHooks();
+
+        var candidates = getCandidates();
+        if (!candidates.length) {
+          showFatal('No valid source candidates were available.', []);
+          return;
+        }
+
+        var primaryIndex = 0;
+        try {
+          setStatus('Loading config...');
+          primaryIndex = await loadWithFallback('config/config.js', 'script', candidates);
+
+          var primary = candidates[primaryIndex];
+          diagnostics.selected = primary;
+          configureServer(primary);
+          setBrandAssets(primary);
+
+          setStatus('Loading styles...\nSource: ' + primary.label);
+          for (var i = 0; i < STYLE_ASSETS.length; i++) {
+            primaryIndex = await loadWithFallback(STYLE_ASSETS[i], 'style', candidates, primaryIndex);
+          }
+
+          setStatus('Loading libraries...');
+          for (var j = 0; j < LIB_ASSETS.length; j++) {
+            primaryIndex = await loadWithFallback(LIB_ASSETS[j], 'script', candidates, primaryIndex);
+          }
+
+          setStatus('Loading data...');
+          for (var k = 0; k < DATA_ASSETS.length; k++) {
+            primaryIndex = await loadWithFallback(DATA_ASSETS[k], 'script', candidates, primaryIndex);
+          }
+
+          setStatus('Loading client...');
+          for (var m = 0; m < CLIENT_ASSETS.length; m++) {
+            primaryIndex = await loadWithFallback(CLIENT_ASSETS[m], 'script', candidates, primaryIndex);
+          }
+
+          loadWithFallback('data/aliases.js', 'script', candidates, primaryIndex).catch(function () {
+            // Optional asset, ignore.
+          });
+
+          setStatus('Starting app...');
+          window.app = new App();
+          scheduleSocketHealthCheck();
+        } catch (err) {
+          showFatal(err && err.message ? err.message : String(err), candidates);
+        }
+      }
+
+      window.PokemonShowdownLauncherDebug = {
+        failures: failures,
+        warnings: warnings,
+        diagnostics: diagnostics,
+        rerun: function () { return boot(); }
+      };
+
+      boot();
+    })();
+  </script>
+</body>
+</html>
