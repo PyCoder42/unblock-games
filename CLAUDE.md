@@ -15,12 +15,12 @@ Formatting Scripts/
   admin-panel-template.html  # Admin panel template (placeholders filled by setup)
 <Game Folder>/
   <name>-regular.html        # Base (clean game HTML, no protocol metadata)
-  <name>-locked-b64.html     # Base64-encoded locked variant (primary distribution format)
-  <name>-locked.html         # Template-literal locked variant (optional)
-  <name>-open-in-new-tab.html # Banner-only variant (optional)
+  <name>-locked.html         # Template-literal locked variant (password-protected)
   <name>-secure.html         # Remote-managed variant (double b64, remote password + blocking)
 Pokemon Showdown/
   pokemon-showdown-host.js   # Node.js HTTP/WebSocket proxy for Pokemon Showdown
+config.json                    # Remote config (password, blocked games) — served via jsdelivr CDN + GAS
+ultimate-game-stash.html       # Main landing page with all game links
 .secure-config               # [gitignored] Credentials for secure variant
 admin-panel.html             # [gitignored] Generated admin panel with embedded credentials
 ```
@@ -40,11 +40,8 @@ admin-panel.html             # [gitignored] Generated admin panel with embedded 
 ## Script Usage
 
 ```bash
-# Regenerate all locked files from base files (most common operation)
-./Formatting\ Scripts/sync-protocol-versions.sh --force
-
-# Regenerate including secure variants
-./Formatting\ Scripts/sync-protocol-versions.sh --keep base,locked-b64,secure --force
+# Regenerate all locked + secure files from base files
+./Formatting\ Scripts/sync-protocol-versions.sh --keep base,locked,secure --force
 
 # Convert a single file
 ./Formatting\ Scripts/lock-game.sh "Drive Mad/drive-mad-regular.html"
@@ -72,7 +69,7 @@ python3 -m http.server 8888
 node "Pokemon Showdown/pokemon-showdown-host.js"
 ```
 
-Test fullscreen flow: open a locked-b64 file, click fullscreen button on banner, enter password (`supercoolpassword`), verify game loads in iframe with banner staying visible. Close banner verifies iframe expands to full size.
+Test fullscreen flow: open a locked or secure file, click fullscreen button on banner, enter password (`supercoolpassword`), verify game loads in iframe with banner staying visible. Close banner verifies iframe expands to full size.
 
 ## Current Status
 
@@ -82,15 +79,17 @@ Test fullscreen flow: open a locked-b64 file, click fullscreen button on banner,
 - `rg` (ripgrep) checked at startup with `perl` fallback
 - `create-folder-from-html.sh` supports `--dry-run`
 - Pokemon Showdown proxy file paths fixed
-- All 7 game folders regenerated and tested
-- **Secure variant implemented**: double-b64 encoding, remote password, per-game blocking, dual-source config (jsdelivr + GAS), admin panel, setup wizard
-- Git repo initialized and pushed to GitHub
+- All 7 game folders have base + locked + secure variants
+- **Secure variant deployed**: double-b64 encoding, remote password, per-game blocking, dual-source config (jsdelivr + GAS), admin panel
+- GAS web app deployed and tested — auto-initializing config server
+- `config.json` in repo root — served via jsdelivr CDN (primary) and GAS Script Properties (fallback)
+- Git repo at `PyCoder42/unblock-games` on GitHub
 
 ## How to Continue
 
-1. **Run setup-secure.sh**: Create the GitHub config repo, deploy the GAS web app, then run the interactive setup to generate `.secure-config` and `admin-panel.html`.
-2. **Generate secure files**: `./Formatting\ Scripts/sync-protocol-versions.sh --keep base,locked-b64,secure --force`
-3. **Test in browser**: Serve locally, verify password prompt, blocking, and time-blocking all work end-to-end via the admin panel.
+1. **Make repo PUBLIC**: jsdelivr CDN requires a public repo to serve `config.json`. Run: `gh repo edit PyCoder42/unblock-games --visibility public`
+2. **Test in browser**: `python3 -m http.server 8888`, then open a `-secure.html` file
+3. **Admin panel**: Open `admin-panel.html` to manage password and per-game blocking
 
 ## Known Issues
 

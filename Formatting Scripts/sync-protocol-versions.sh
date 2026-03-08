@@ -17,13 +17,13 @@ source "$SCRIPT_DIR/common.sh"
 
 check_dependencies
 
-KEEP_CSV="base,locked-b64"
+KEEP_CSV="base,locked,secure"
 PASSWORD_OVERRIDE=""
 DRY_RUN="false"
 FORCE_REGENERATE="false"
 UPGRADE_BANNER="true"
 INCLUDE_DIRS=""
-EXCLUDE_DIRS="test-lock-converter"
+EXCLUDE_DIRS="test-lock-converter,Formatting Scripts"
 
 LOCK_SCRIPT="$SCRIPT_DIR/lock-game.sh"
 ROOT_DIR="${SCRIPT_DIR:h}"

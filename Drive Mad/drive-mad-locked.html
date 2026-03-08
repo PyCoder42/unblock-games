@@ -8,12 +8,12 @@ PASSWORD_ENABLED: true
 SHOW_OPEN_IN_NEW_TAB_BANNER: true
 GENERATE_OPEN_IN_NEW_TAB_VERSION: true
 PASSWORD: supercoolpassword
-OUTPUT_FORMAT: locked-b64
+OUTPUT_FORMAT: locked
 -->
 <script>
 // ========= LOCK SETTINGS (EDIT THESE) =========
 var LOCK_GAME_PROTOCOL_VERSION = "1";
-var LOCK_FILE_TYPE = "locked-b64";
+var LOCK_FILE_TYPE = "locked";
 var PASSWORD = "supercoolpassword";
 var PASSWORD_ENABLED = true;
 var SHOW_OPEN_IN_NEW_TAB_BANNER = true;
@@ -302,9 +302,94 @@ var SHOW_OPEN_IN_NEW_TAB_BANNER = true;
   <p class="error-msg" id="errorMsg">Wrong password. Try again.</p>
 </div>
 <script>
-var REAL_PAGE_B64 = "PCFET0NUWVBFIGh0bWw+PGh0bWwgc3R5bGU9IndpZHRoOjEwMCU7aGVpZ2h0OjEwMCU7YmFja2dyb3VuZC1jb2xvcjpibGFjazsiPgo8aGVhZD4KICAgIAogICAgPHNjcmlwdCBhc3luYyBzcmM9Imh0dHBzOi8vd3d3Lmdvb2dsZXRhZ21hbmFnZXIuY29tL2d0YWcvanM/aWQ9Ry0iPjwvc2NyaXB0PgogICAgPHNjcmlwdD4KICAgICAgICB3aW5kb3cuZGF0YUxheWVyID0gd2luZG93LmRhdGFMYXllciB8fCBbXTsKCiAgICAgICAgZnVuY3Rpb24gZ3RhZygpIHsKICAgICAgICAgICAgZGF0YUxheWVyLnB1c2goYXJndW1lbnRzKTsKICAgICAgICB9CiAgICAgICAgZ3RhZygnanMnLCBuZXcgRGF0ZSgpKTsKICAgICAgICBndGFnKCdjb25maWcnLCAnRy0nKTsKICAgIDwvc2NyaXB0Pgo8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CjxtZXRhIGh0dHAtZXF1aXY9Im9yaWdpbi10cmlhbCIgY29udGVudD0iQXJOUFNGbTdnVkc5ODhFckJ1bFR1WjIxVk05c012TjRHOTBTZ1hYQ09PemYycmJZMFBMbUkvRFlrZ0VpRVpaeEMzeklxVUlmM05JbkhrWm9TdnV0eUFJQUFBQjdleUp2Y21sbmFXNGlPaUpvZEhSd2N6b3ZMMlZoWjJ4bGNtTnlZV1owTG1OdmJUbzBORE1pTENKbVpXRjBkWEpsSWpvaVYyVmlRWE56WlcxaWJIbEtVMUJ5YjIxcGMyVkpiblJsWjNKaGRHbHZiaUlzSW1WNGNHbHllU0k2TVRjME5EWTNOVEl3TUN3aWFYTlRkV0prYjIxaGFXNGlPblJ5ZFdWOSI+CjxtZXRhIGh0dHAtZXF1aXY9Im9yaWdpbi10cmlhbCIgY29udGVudD0iQTZuRWtrY085Ry93cWFtUFNNRTFkUG1rR0wvR3ZsTExQdVc4bEkxV0JCSFgvTENDdkpkTllBL25pY1NQdy85a0xFcXE5UVZ2NGcwU1FML3hkYlU4cDJvQUFBQjdleUp2Y21sbmFXNGlPaUpvZEhSd2N6b3ZMMlZoWjJ4bGNtTnlZV1owTG1OdmJUbzBORE1pTENKbVpXRjBkWEpsSWpvaVYyVmlRWE56WlcxaWJIbEtVMUJ5YjIxcGMyVkpiblJsWjNKaGRHbHZiaUlzSW1WNGNHbHllU0k2TVRjek9ERXpOVE13TkN3aWFYTlRkV0prYjIxaGFXNGlPblJ5ZFdWOSI+Cgo8bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLCBpbml0aWFsLXNjYWxlPTEuMCwgbWluaW11bS1zY2FsZT0xLjAsIG1heGltdW0tc2NhbGU9MS4wIj4KPHRpdGxlPk1pbmVjcmFmdCAxLjEyLjI8L3RpdGxlPgo8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCI+CndpbmRvdy5hZGRFdmVudExpc3RlbmVyKCJsb2FkIiwgZnVuY3Rpb24oKSB7CiAgaWYoKHR5cGVvZiBXZWJBc3NlbWJseSAhPT0gInVuZGVmaW5lZCIpICYmICh0eXBlb2YgV2ViQXNzZW1ibHkuU3VzcGVuZGluZyAhPT0gInVuZGVmaW5lZCIpKSB7CiAgICB0cnkgewogICAgICBpZigidHJ1ZSIgPT09IHdpbmRvdy5sb2NhbFN0b3JhZ2UuZ2V0SXRlbSgiaGlkZUVhZ2xlcldBU01BdmFpbGFibGUiKSkgewogICAgICAgIHJldHVybjsKICAgICAgfQogICAgfWNhdGNoKGV4KSB7CiAgICB9CiAgICB2YXIgZWwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiZWFnbGVyV0FTTUF2YWlsYWJsZSIpOwogICAgdmFyIGNoa2JveCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJlYWdsZXJXQVNNQXZhaWxhYmxlRG9udFNob3ciKTsKICAgIGZ1bmN0aW9uIGhhbmRsZURvbnRTaG93KCkgewogICAgICBpZihjaGtib3guY2hlY2tlZCkgewogICAgICAgIHRyeSB7CiAgICAgICAgICB3aW5kb3cubG9jYWxTdG9yYWdlLnNldEl0ZW0oImhpZGVFYWdsZXJXQVNNQXZhaWxhYmxlIiwgInRydWUiKTsKICAgICAgICB9Y2F0Y2goZXgpIHsKICAgICAgICB9CiAgICAgIH0KICAgIH0KICAgIGVsLnN0eWxlLmRpc3BsYXkgPSAiYmxvY2siOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoImVhZ2xlcldBU01BdmFpbGFibGVZZXMiKS5hZGRFdmVudExpc3RlbmVyKCJjbGljayIsIGZ1bmN0aW9uKCkgewogICAgICBoYW5kbGVEb250U2hvdygpOwogICAgICBkb2N1bWVudC5sb2NhdGlvbi5ocmVmID0gImh0dHBzOi8vZWFnbGVyY3JhZnQuY29tL21jLzEuMTIuMi13YXNtLyI7CiAgICB9KTsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCJlYWdsZXJXQVNNQXZhaWxhYmxlTm8iKS5hZGRFdmVudExpc3RlbmVyKCJjbGljayIsIGZ1bmN0aW9uKCkgewogICAgICBoYW5kbGVEb250U2hvdygpOwogICAgICBlbC5zdHlsZS5kaXNwbGF5ID0gIm5vbmUiOwogICAgfSk7CiAgfQp9KTsKPC9zY3JpcHQ+CjxzY3JpcHQgdHlwZT0idGV4dC9qYXZhc2NyaXB0Ij4Kd2luZG93LmRpc2FibGVVc2Vyc2NyaXB0cyA9IHRydWU7CndpbmRvdy5fX2VhZ2xlcmNyYWZ0TG9hZGVyQ2xpZW50ID0gewogIGNvbnRhaW5lcjogImdhbWVfZnJhbWUiLAogIG5hbWU6ICJFYWdsZXJjcmFmdCAxLjEyIiwKICBmaWxlOiAibmV0LnBleXRvbnBsYXl6NTg1LmVhZ2xlcmNyYWZ0LnYxXzEyLmNsaWVudCIsCiAgY2lkOiAiYmFmeWJlaWRybmNoeWVjaDdiMjZycWhtM3RheXQ3cDZteHZsMjNsemQ0ZjVtY3lxZGE3aGJyenlhbDQiLAogIHBhdGg6ICIiLAogIGRvd25sb2FkOiAiaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL2dlbml6eS9tY0BtYWluL2RhdGEvMS4xMi4yLmd6IiwKICBkbFNpemU6IDE1NjAxMzQxLAogIGd6aXA6IHRydWUKfTsKPC9zY3JpcHQ+CjxzY3JpcHQgdHlwZT0idGV4dC9qYXZhc2NyaXB0IiBzcmM9Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9nZW5penkvbWNAbWFpbi9zaGFyZWQvbG9hZGVyLmpzIj48L3NjcmlwdD4KPGxpbmsgdHlwZT0iaW1hZ2UvcG5nIiByZWw9InNob3J0Y3V0IGljb24iIGhyZWY9Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9nZW5penkvbWNAbWFpbi9zaGFyZWQvZ2FtZS5wbmciIC8+CjwvaGVhZD4KCjxzY3JpcHQ+CmRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoImNsaWNrIiwgZnVuY3Rpb24gb3Blbk9uY2UoKSB7CiAgICB3aW5kb3cub3BlbigiaW5kZXguaHRtbCIsICJfYmxhbmsiKTsKICAgIGRvY3VtZW50LnJlbW92ZUV2ZW50TGlzdGVuZXIoImNsaWNrIiwgb3Blbk9uY2UpOwp9KTsKPC9zY3JpcHQ+Cgo8Ym9keSBzdHlsZT0ibWFyZ2luOjBweDt3aWR0aDoxMDAlO2hlaWdodDoxMDAlO292ZXJmbG93OmhpZGRlbjtiYWNrZ3JvdW5kLWNvbG9yOndoaXRlOyI+CjxkaXYgaWQ9ImVhZ2xlcldBU01BdmFpbGFibGUiIHN0eWxlPSJkaXNwbGF5Om5vbmU7cG9zaXRpb246YWJzb2x1dGU7bGVmdDowcHg7dG9wOjBweDtyaWdodDowcHg7ei1pbmRleDoxMDAwOyI+CjxkaXYgc3R5bGU9Im1hcmdpbjphdXRvO21heC13aWR0aDo2NTBweDsiPgo8ZGl2IHN0eWxlPSJtYXJnaW46MjBweDtib3JkZXI6NXB4IGRvdWJsZSBibGFjaztwYWRkaW5nOjEwcHg7YmFja2dyb3VuZC1jb2xvcjp3aGl0ZTt0ZXh0LWFsaWduOmNlbnRlcjtmb250LWZhbWlseTpzYW5zLXNlcmlmO2ZvbnQtc2l6ZToxLjJlbTsiPgo8aDM+RWFnbGVyY3JhZnQgV2ViQXNzZW1ibHkgR0MgaXMgc3VwcG9ydGVkIG9uIHlvdXIgYnJvd3Nlciwgd291bGQgeW91IGxpa2UgdG8gdHJ5IGl0PzwvaDM+CjxwPlRoZSBuZXcgdmFyaWFudCBvZiBFYWdsZXJjcmFmdCBnZXRzIGFsbW9zdCA8Yj4yeCB0aGUgRlBTPC9iPiwgaG93ZXZlciBpdCBtYXkgY3Jhc2ggaWYgeW91ciBkZXZpY2UgZG9lc24ndCBoYXZlIGEgbG90IG9mIG1lbW9yeTwvcD4KPHA+WW91ciBleGlzdGluZyBzaW5nbGVwbGF5ZXIgd29ybGRzIHdpbGwgYmUgYXZhaWxhYmxlPC9wPgo8aDQ+PGlucHV0IHR5cGU9ImNoZWNrYm94IiBzdHlsZT0iem9vbToxLjU7IiBpZD0iZWFnbGVyV0FTTUF2YWlsYWJsZURvbnRTaG93Ij4gRG8gbm90IHNob3cgYWdhaW48L2g0Pgo8cD48YnV0dG9uIGlkPSJlYWdsZXJXQVNNQXZhaWxhYmxlWWVzIiBzdHlsZT0iem9vbToxLjU7Ij5Td2l0Y2ggdG8gV2ViQXNzZW1ibHkgdmVyc2lvbjwvYnV0dG9uPjwvcD4KPHA+PGJ1dHRvbiBpZD0iZWFnbGVyV0FTTUF2YWlsYWJsZU5vIiBzdHlsZT0iem9vbToxLjU7Ij5LZWVwIHVzaW5nIEphdmFTY3JpcHQgdmVyc2lvbjwvYnV0dG9uPjwvcD4KPC9kaXY+CjwvZGl2Pgo8L2Rpdj4KPGRpdiBpZD0iZ2FtZV9mcmFtZSIgc3R5bGU9IndpZHRoOjEwMCU7aGVpZ2h0OjEwMCU7Ij48L2Rpdj4KPC9ib2R5Pgo8L2h0bWw+";
+var REAL_PAGE_B64_FALLBACK = "PCFET0NUWVBFIGh0bWw+PGh0bWwgbGFuZz0iZW4tdXMiPgoKPGhlYWQ+CiAgCiAgCiAgCiAgPGJhc2UgaHJlZj0iaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L2doL2dlbml6eS9kbWFkLXBva2lANDliNWFiNmI5ODdmNWYzYmU1OGY5ZGFlNTljOTJlOGZjMWFhYjliMC8iPgogIDxzY3JpcHQ+CiAgd2luZG93LmFzc2dkZCA9IHsKICAgICJhbmNlc3Rvck9yaWdpbnMiOiB7CiAgICAgICAgIjAiOiAiaHR0cHM6Ly9nYW1lcy5wb2tpLmNvbSIsCiAgICAgICAgIjEiOiAiaHR0cHM6Ly9wb2tpLmNvbSIKICAgIH0sCiAgICAiaHJlZiI6ICJodHRwczovL2Y5NTY0ZTRlLWVmMjUtNGU0Yi1iYTY3LWNiMTFhMTU3NmJiZC5wb2tpLWdkbi5jb20vY2MxYmM1N2EtZTM1NS00Njk2LTk3YzItMDk3YmY2MTg4NjA2L2luZGV4Lmh0bWw/Y291bnRyeT1VUyZ1cmxfcmVmZXJyZXI9aHR0cHMlM0ElMkYlMkZwb2tpLmNvbSUyRiZzaXRlX2lkPTMmaXNvX2xhbmc9ZW4mcG9raV91cmw9aHR0cHMlM0ElMkYlMkZwb2tpLmNvbSUyRmVuJTJGZyUyRmRyaXZlLW1hZCZob2lzdD15ZXMmbm9uUGVyc29uYWxpemVkPW4mY2xvdWRzYXZlZ2FtZXM9biZmYW1pbHlGcmllbmRseT1uJmNhdGVnb3JpZXM9NzglMkM5MyUyQzk2JTJDMTAzJTJDMzc3JTJDMzkwJTJDNDAwJTJDODkzJTJDOTI5JTJDMTEyNiUyQzExMzklMkMxMTQwJTJDMTE0MSUyQzExNDMlMkMxMTQ3JTJDMTE2MyUyQzExODUlMkMxMTkwJTJDMTE5MyUyQzExOTcmc3BlY2lhbF9jb25kaXRpb249bGFuZGluZyZnYW1lX2lkPWY5NTY0ZTRlLWVmMjUtNGU0Yi1iYTY3LWNiMTFhMTU3NmJiZCZnYW1lX3ZlcnNpb25faWQ9Y2MxYmM1N2EtZTM1NS00Njk2LTk3YzItMDk3YmY2MTg4NjA2Jmluc3BlY3Rvcj0wIiwKICAgICJvcmlnaW4iOiAiaHR0cHM6Ly9mOTU2NGU0ZS1lZjI1LTRlNGItYmE2Ny1jYjExYTE1NzZiYmQucG9raS1nZG4uY29tIiwKICAgICJwcm90b2NvbCI6ICJodHRwczoiLAogICAgImhvc3QiOiAiZjk1NjRlNGUtZWYyNS00ZTRiLWJhNjctY2IxMWExNTc2YmJkLnBva2ktZ2RuLmNvbSIsCiAgICAiaG9zdG5hbWUiOiAiZjk1NjRlNGUtZWYyNS00ZTRiLWJhNjctY2IxMWExNTc2YmJkLnBva2ktZ2RuLmNvbSIsCiAgICAicG9ydCI6ICIiLAogICAgInBhdGhuYW1lIjogIi9jYzFiYzU3YS1lMzU1LTQ2OTYtOTdjMi0wOTdiZjYxODg2MDYvaW5kZXguaHRtbCIsCiAgICAic2VhcmNoIjogIj9jb3VudHJ5PVVTJnVybF9yZWZlcnJlcj1odHRwcyUzQSUyRiUyRnBva2kuY29tJTJGJnNpdGVfaWQ9MyZpc29fbGFuZz1lbiZwb2tpX3VybD1odHRwcyUzQSUyRiUyRnBva2kuY29tJTJGZW4lMkZnJTJGZHJpdmUtbWFkJmhvaXN0PXllcyZub25QZXJzb25hbGl6ZWQ9biZjbG91ZHNhdmVnYW1lcz1uJmZhbWlseUZyaWVuZGx5PW4mY2F0ZWdvcmllcz03OCUyQzkzJTJDOTYlMkMxMDMlMkMzNzclMkMzOTAlMkM0MDAlMkM4OTMlMkM5MjklMkMxMTI2JTJDMTEzOSUyQzExNDAlMkMxMTQxJTJDMTE0MyUyQzExNDclMkMxMTYzJTJDMTE4NSUyQzExOTAlMkMxMTkzJTJDMTE5NyZzcGVjaWFsX2NvbmRpdGlvbj1sYW5kaW5nJmdhbWVfaWQ9Zjk1NjRlNGUtZWYyNS00ZTRiLWJhNjctY2IxMWExNTc2YmJkJmdhbWVfdmVyc2lvbl9pZD1jYzFiYzU3YS1lMzU1LTQ2OTYtOTdjMi0wOTdiZjYxODg2MDYmaW5zcGVjdG9yPTAiLAogICAgImhhc2giOiAiIgp9CiAgPC9zY3JpcHQ+CiAgPG1ldGEgY2hhcnNldD0idXRmLTgiPgogIDxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVudD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4KCiAgPHRpdGxlPkRyaXZlIE1hZDwvdGl0bGU+CiAgPG1ldGEgbmFtZT0iZGVzY3JpcHRpb24iIGNvbnRlbnQ9IiI+CiAgPG1ldGEgbmFtZT0iZ29vZ2xlIiBjb250ZW50PSJub3RyYW5zbGF0ZSI+CgogIDxtZXRhIG5hbWU9InZpZXdwb3J0IiBjb250ZW50PSJ3aWR0aD1kZXZpY2Utd2lkdGgsIGluaXRpYWwtc2NhbGU9MSwgdXNlci1zY2FsYWJsZT1ubyI+CiAgPGxpbmsgcmVsPSJzdHlsZXNoZWV0IiBocmVmPSJ3ZWJhcHAvZmFuY2FkZS5jc3MiPgogIDxsaW5rIHJlbD0iaWNvbiIgaHJlZj0id2ViYXBwL2Zhdmljb24uaWNvIj4KCiAgPCEtLSBQT0tJIFNESyAtLT4KICA8c2NyaXB0IHNyYz0icG9raS1zZGsuanMiID48L3NjcmlwdD4KPC9oZWFkPgoKPGJvZHkgaWQ9ImJvZHkiPgoKICA8IS0tIE1vZGFsIGRpYWxvZyBkaXYgLS0+CiAgPGRpdiBpZD0ibW9kYWxfcGFyZW50Ij4KICAgIDxkaXYgaWQ9Im1vZGFsX2NvbnRlbnQiPgogICAgICA8c3BhbiBpZD0ibW9kYWxfY2xvc2VfYnV0dG9uIj4mdGltZXM7PC9zcGFuPgogICAgICA8ZGl2IGlkPSJzdG9yZV9saW5rX21vZGFsX2NvbnRlbnQiIGNsYXNzPSJtb2RhbF9pbm5lciI+PC9kaXY+CiAgICAgIDxkaXYgaWQ9InNoYXJlX2ZpbGVfbW9kYWxfY29udGVudCIgY2xhc3M9Im1vZGFsX2lubmVyIj48L2Rpdj4KICAgIDwvZGl2PgogIDwvZGl2PgoKICA8IS0tIAogICAgICBHYW1lIGNhbnZhcyBhbmQgb3ZlcmxheS4gRW1zY3JpcHRlbiBtYWtlcyBzb21lIGFzc3VtcHRpb25zIGFib3V0IGhvdyB0aGUgY2FudmFzIGlzIHBvc2l0aW9uZWQgaW4gb3JkZXIKICAgICAgdG8gdHJhbnNsYXRlIGRvY3VtZW50IHRvIGdhbWUgY29vcmRpbmF0ZXMKICAgIC0tPgogIDxkaXYgaWQ9ImNhbnZhc19ib3JkZXIiIGNsYXNzPSJlbXNjcmlwdGVuX2JvcmRlciI+CiAgICA8ZGl2IGlkPSJwbGF5X2NvbnRlbnQiIGNsYXNzPSJtaWRkbGUgY2VudGVyIj4KICAgICAgPGRpdiBjbGFzcz0iZWRnZSI+CiAgICAgICAgPGRpdiBjbGFzcz0iYm94Ij4KICAgICAgICAgIDxkaXYgY2xhc3M9ImJsYWNrIj4KICAgICAgICAgICAgPGltZyBzcmM9IndlYmFwcC9jb3Zlci5qcGciIGNsYXNzPSJjb3ZlciI+CiAgICAgICAgICAgIDxwIGNsYXNzPSJ0aXRsZSI+RHJpdmUgTWFkPC9wPgogICAgICAgICAgICA8cCBjbGFzcz0iYXV0aG9yIj5GYW5jYWRlPC9wPgogICAgICAgICAgPC9kaXY+CiAgICAgICAgPC9kaXY+CiAgICAgIDwvZGl2PgogICAgICA8ZGl2IGlkPSJwcm9ncmVzc19vcl9wbGF5Ij4KICAgICAgICA8cHJvZ3Jlc3MgaWQ9InByb2dyZXNzIiBjbGFzcz0ibG9hZGluZyIgdmFsdWU9IjAiIG1heD0iMTAwIj48L3Byb2dyZXNzPgogICAgICA8L2Rpdj4KICAgICAgPHAgY2xhc3M9ImRlc2NyaXB0aW9uIj48L3A+CiAgICA8L2Rpdj4KICAgIDxjYW52YXMgY2xhc3M9ImVtc2NyaXB0ZW4iIGlkPSJjYW52YXMiIHRhYmluZGV4PS0xPgogICAgPC9jYW52YXM+CiAgICA8ZGl2IGlkPSJncmFkaWVudCI+PC9kaXY+CiAgICA8ZGl2IGlkPSJ3ZWJ2aWV3X2NvbnRlbnQiPjwvZGl2PgogIDwvZGl2PgoKICA8IS0tIE1hbnVhbCBKUywgQ2FsbGVkIGZyb20gV0FTTSAtLT4KICA8c2NyaXB0IHR5cGU9InRleHQvamF2YXNjcmlwdCIgc3JjPSJ3ZWJhcHAvc291cmNlX21pbi5qcyI+PC9zY3JpcHQ+CgogIDwhLS0gQXV0byBnZW5lcmF0ZWQgSlMgLS0+CiAgPHNjcmlwdCB0eXBlPSJ0ZXh0L2phdmFzY3JpcHQiIHNyYz0id2ViYXBwL2luZGV4LmpzIj48L3NjcmlwdD4KPC9ib2R5PgoKPC9odG1sPg==";
+var REAL_PAGE = `
+<!DOCTYPE html><html lang="en-us">
 
-function getGameHtml() { return atob(REAL_PAGE_B64); }
+<head>
+  
+  
+  
+  <base href="https://cdn.jsdelivr.net/gh/genizy/dmad-poki@49b5ab6b987f5f3be58f9dae59c92e8fc1aab9b0/">
+  <script>
+  window.assgdd = {
+    "ancestorOrigins": {
+        "0": "https://games.poki.com",
+        "1": "https://poki.com"
+    },
+    "href": "https://f9564e4e-ef25-4e4b-ba67-cb11a1576bbd.poki-gdn.com/cc1bc57a-e355-4696-97c2-097bf6188606/index.html?country=US&url_referrer=https%3A%2F%2Fpoki.com%2F&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fdrive-mad&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&categories=78%2C93%2C96%2C103%2C377%2C390%2C400%2C893%2C929%2C1126%2C1139%2C1140%2C1141%2C1143%2C1147%2C1163%2C1185%2C1190%2C1193%2C1197&special_condition=landing&game_id=f9564e4e-ef25-4e4b-ba67-cb11a1576bbd&game_version_id=cc1bc57a-e355-4696-97c2-097bf6188606&inspector=0",
+    "origin": "https://f9564e4e-ef25-4e4b-ba67-cb11a1576bbd.poki-gdn.com",
+    "protocol": "https:",
+    "host": "f9564e4e-ef25-4e4b-ba67-cb11a1576bbd.poki-gdn.com",
+    "hostname": "f9564e4e-ef25-4e4b-ba67-cb11a1576bbd.poki-gdn.com",
+    "port": "",
+    "pathname": "/cc1bc57a-e355-4696-97c2-097bf6188606/index.html",
+    "search": "?country=US&url_referrer=https%3A%2F%2Fpoki.com%2F&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fdrive-mad&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&categories=78%2C93%2C96%2C103%2C377%2C390%2C400%2C893%2C929%2C1126%2C1139%2C1140%2C1141%2C1143%2C1147%2C1163%2C1185%2C1190%2C1193%2C1197&special_condition=landing&game_id=f9564e4e-ef25-4e4b-ba67-cb11a1576bbd&game_version_id=cc1bc57a-e355-4696-97c2-097bf6188606&inspector=0",
+    "hash": ""
+}
+  <\/script>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <title>Drive Mad</title>
+  <meta name="description" content="">
+  <meta name="google" content="notranslate">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <link rel="stylesheet" href="webapp/fancade.css">
+  <link rel="icon" href="webapp/favicon.ico">
+
+  <!-- POKI SDK -->
+  <script src="poki-sdk.js" ><\/script>
+</head>
+
+<body id="body">
+
+  <!-- Modal dialog div -->
+  <div id="modal_parent">
+    <div id="modal_content">
+      <span id="modal_close_button">&times;</span>
+      <div id="store_link_modal_content" class="modal_inner"></div>
+      <div id="share_file_modal_content" class="modal_inner"></div>
+    </div>
+  </div>
+
+  <!-- 
+      Game canvas and overlay. Emscripten makes some assumptions about how the canvas is positioned in order
+      to translate document to game coordinates
+    -->
+  <div id="canvas_border" class="emscripten_border">
+    <div id="play_content" class="middle center">
+      <div class="edge">
+        <div class="box">
+          <div class="black">
+            <img src="webapp/cover.jpg" class="cover">
+            <p class="title">Drive Mad</p>
+            <p class="author">Fancade</p>
+          </div>
+        </div>
+      </div>
+      <div id="progress_or_play">
+        <progress id="progress" class="loading" value="0" max="100"></progress>
+      </div>
+      <p class="description"></p>
+    </div>
+    <canvas class="emscripten" id="canvas" tabindex=-1>
+    </canvas>
+    <div id="gradient"></div>
+    <div id="webview_content"></div>
+  </div>
+
+  <!-- Manual JS, Called from WASM -->
+  <script type="text/javascript" src="webapp/source_min.js"><\/script>
+
+  <!-- Auto generated JS -->
+  <script type="text/javascript" src="webapp/index.js"><\/script>
+</body>
+
+</html>`;
+
+function getGameHtml() { return REAL_PAGE; }
 
 function removeBanner() {
   var bar = document.getElementById('secretBar');
