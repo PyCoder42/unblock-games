@@ -35,7 +35,7 @@ Usage: ./sync-protocol-versions.sh [options]
 Options:
   --root <path>        Root directory to scan (default: parent of script dir)
   --keep <csv>         Variants to keep:
-                       base,open-in-new-tab,locked,locked-b64
+                       base,open-in-new-tab,locked,locked-b64,secure
                        (default: base,locked-b64)
   --password <value>   Override password for generated locked files
   --dry-run            Print actions without changing files
@@ -69,7 +69,7 @@ keep_kind_to_variant_kind() {
   local kind="$1"
   case "$kind" in
     base) print -r -- "regular" ;;
-    open-in-new-tab|locked|locked-b64) print -r -- "$kind" ;;
+    open-in-new-tab|locked|locked-b64|secure) print -r -- "$kind" ;;
     *) return 1 ;;
   esac
 }
@@ -111,6 +111,7 @@ variant_stem_for_group() {
       open-in-new-tab) print -r -- "eaglercraft-open-in-new-tab${tail}" ;;
       locked) print -r -- "eaglercraft-locked${tail}" ;;
       locked-b64) print -r -- "eaglercraft-locked-b64${tail}" ;;
+      secure) print -r -- "eaglercraft-secure${tail}" ;;
       plain) print -r -- "eaglercraft${tail}" ;;
       label) print -r -- "eaglercraft${tail}" ;;
       *) return 1 ;;
@@ -124,6 +125,7 @@ variant_stem_for_group() {
     open-in-new-tab) print -r -- "${base}-open-in-new-tab" ;;
     locked) print -r -- "${base}-locked" ;;
     locked-b64) print -r -- "${base}-locked-b64" ;;
+    secure) print -r -- "${base}-secure" ;;
     plain|label) print -r -- "$base" ;;
     *) return 1 ;;
   esac
@@ -166,7 +168,7 @@ maybe_upgrade_banner_file() {
   stem="${file:t:r}"
   kind="$(variant_kind_from_stem "$stem")"
   case "$kind" in
-    open-in-new-tab|locked|locked-b64)
+    open-in-new-tab|locked|locked-b64|secure)
       log "  upgrading banner controls in: ${file:t}"
       lock_generate "$file" "$kind"
       ;;
