@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unblock Games Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .container { max-width: 500px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 20px 0;
+    border-bottom: 1px solid #2a2a4a;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-size: 22px;
+    color: #8f94fb;
+    margin-bottom: 8px;
+  }
+  .status {
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    display: inline-block;
+  }
+  .status.ok { background: #1b4332; color: #52b788; }
+  .status.partial { background: #5c4000; color: #ffc107; }
+  .status.error { background: #4a1010; color: #e94560; }
+
+  /* Sections */
+  .section {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section h2 {
+    font-size: 16px;
+    color: #8f94fb;
+    margin-bottom: 12px;
+  }
+
+  /* Inputs */
+  input[type="text"], input[type="password"], input[type="datetime-local"] {
+    padding: 10px 14px;
+    font-size: 16px;
+    border: 2px solid #2a2a4a;
+    border-radius: 8px;
+    background: #0f3460;
+    color: white;
+    outline: none;
+    width: 100%;
+  }
+  input:focus { border-color: #8f94fb; }
+  input[type="datetime-local"] {
+    font-size: 14px;
+    color-scheme: dark;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    min-height: 44px;
+    min-width: 44px;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: #4e54c8; color: white; }
+  .btn-danger { background: #e94560; color: white; }
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-icon:hover { opacity: 0.85; }
+
+  /* Password section */
+  .pw-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .pw-row input { flex: 1; }
+  .pw-current {
+    font-size: 13px;
+    color: #999;
+    margin-top: 8px;
+  }
+
+  /* Game list */
+  .game-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #2a2a4a;
+  }
+  .game-row:last-child { border-bottom: none; }
+  .game-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .badge {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .badge-active { background: #1b4332; color: #52b788; }
+  .badge-blocked { background: #4a1010; color: #e94560; }
+  .badge-timed { background: #5c4000; color: #ffc107; }
+
+  .block-btn { background: #4a1010; color: #e94560; }
+  .unblock-btn { background: #1b4332; color: #52b788; }
+  .time-btn { background: #5c4000; color: #ffc107; }
+
+  /* Time picker overlay */
+  .time-picker {
+    display: none;
+    background: #0f3460;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+  .time-picker.active { display: block; }
+  .time-picker-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .time-picker-row input { flex: 1; }
+
+  /* Add game */
+  .add-row {
+    display: flex;
+    gap: 8px;
+  }
+  .add-row input { flex: 1; }
+
+  /* Loading */
+  .loading { text-align: center; color: #8f94fb; padding: 40px 0; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.success { background: #1b4332; color: #52b788; }
+  .toast.error { background: #4a1010; color: #e94560; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Unblock Games Admin</h1>
+    <span id="statusBadge" class="status ok">Connecting...</span>
+  </div>
+
+  <div id="loadingState" class="loading">Loading config...</div>
+
+  <div id="mainContent" style="display:none;">
+    <!-- Password Section -->
+    <div class="section">
+      <h2>Password</h2>
+      <div class="pw-row">
+        <input type="text" id="pwInput" placeholder="New password...">
+        <button class="btn btn-primary" onclick="updatePassword()">Update</button>
+      </div>
+      <p class="pw-current">Current: <span id="currentPw">—</span></p>
+    </div>
+
+    <!-- Games Section -->
+    <div class="section">
+      <h2>Games</h2>
+      <div id="gamesList"></div>
+    </div>
+
+    <!-- Add Game Section -->
+    <div class="section">
+      <h2>Add Game</h2>
+      <div class="add-row">
+        <input type="text" id="addGameInput" placeholder="game-id (e.g., drive-mad)">
+        <button class="btn btn-primary" onclick="addGame()">Add</button>
+      </div>
+    </div>
+
+    <!-- Refresh -->
+    <div style="text-align:center;padding:12px 0;">
+      <button class="btn btn-primary" onclick="loadConfig()" style="width:100%;">Refresh</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ═══ Config (replaced by setup-secure.sh) ═══
+var JSDELIVR_URL = '{{JSDELIVR_URL}}';
+var GAS_URL = '{{GAS_URL}}';
+var GITHUB_REPO = '{{GITHUB_REPO}}';
+var GITHUB_PAT = '{{GITHUB_PAT}}';
+var GAS_SECRET = '{{GAS_SECRET}}';
+
+var config = {};
+var currentSha = '';
+
+// ═══ Utilities ═══
+
+function formatName(id) {
+  return id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(function() { t.className = 'toast'; }, 2500);
+}
+
+function setStatus(text, cls) {
+  var b = document.getElementById('statusBadge');
+  b.textContent = text;
+  b.className = 'status ' + cls;
+}
+
+// ═══ Config Loading (dual-source) ═══
+
+function loadConfig() {
+  fetch(JSDELIVR_URL + '?t=' + Date.now())
+    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(c) { config = c; onConfigLoaded('jsdelivr'); })
+    .catch(function() {
+      // Fallback to GAS
+      var cbName = '__adm_' + Date.now();
+      window[cbName] = function(c) {
+        delete window[cbName];
+        config = c;
+        onConfigLoaded('gas-fallback');
+      };
+      var s = document.createElement('script');
+      s.src = GAS_URL + '?action=read&callback=' + cbName;
+      s.onerror = function() { setStatus('Both sources failed', 'error'); };
+      document.head.appendChild(s);
+    });
+
+  // Also get the current SHA from GitHub for writes
+  fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/config.json', {
+    headers: { 'Authorization': 'token ' + GITHUB_PAT }
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.sha) currentSha = d.sha; })
+    .catch(function() {});
+}
+
+function onConfigLoaded(source) {
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('mainContent').style.display = '';
+  setStatus('Connected (' + source + ')', 'ok');
+  renderConfig();
+}
+
+// ═══ Rendering ═══
+
+function renderConfig() {
+  // Password
+  document.getElementById('currentPw').textContent = config.password || '(none)';
+
+  // Games
+  var games = config.games || [];
+  var blocked = config.blocked || {};
+  var html = '';
+
+  games.forEach(function(id) {
+    var blockVal = blocked[id];
+    var badgeHtml, actionHtml;
+
+    if (blockVal === true) {
+      badgeHtml = '<span class="badge badge-blocked">Blocked</span>';
+      actionHtml = '<button class="btn-icon unblock-btn" onclick="unblockGame(\'' + id + '\')" title="Unblock">&#x2705;</button>';
+    } else if (typeof blockVal === 'string') {
+      var d = new Date(blockVal);
+      var now = new Date();
+      if (d > now) {
+        var label = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        badgeHtml = '<span class="badge badge-timed">Until ' + label + '</span>';
+        actionHtml = '<button class="btn-icon unblock-btn" onclick="unblockGame(\'' + id + '\')" title="Unblock">&#x2705;</button>';
+      } else {
+        badgeHtml = '<span class="badge badge-active">Active</span>';
+        actionHtml = blockButtons(id);
+      }
+    } else {
+      badgeHtml = '<span class="badge badge-active">Active</span>';
+      actionHtml = blockButtons(id);
+    }
+
+    html += '<div class="game-row">' +
+      '<span class="game-name">' + formatName(id) + '</span>' +
+      badgeHtml + actionHtml +
+      '</div>' +
+      '<div class="time-picker" id="tp_' + id + '">' +
+      '<label style="font-size:13px;color:#999;">Block until:</label>' +
+      '<div class="time-picker-row">' +
+      '<input type="datetime-local" id="dt_' + id + '">' +
+      '<button class="btn btn-primary" onclick="timeblockGame(\'' + id + '\')" style="padding:8px 16px;">Set</button>' +
+      '</div></div>';
+  });
+
+  document.getElementById('gamesList').innerHTML = html;
+}
+
+function blockButtons(id) {
+  return '<button class="btn-icon block-btn" onclick="blockGame(\'' + id + '\')" title="Block">&#x1F6AB;</button>' +
+    '<button class="btn-icon time-btn" onclick="toggleTimePicker(\'' + id + '\')" title="Time Block">&#x1F552;</button>';
+}
+
+function toggleTimePicker(id) {
+  var el = document.getElementById('tp_' + id);
+  if (el) el.classList.toggle('active');
+}
+
+// ═══ Write Operations (dual-source) ═══
+
+function writeConfig(callback) {
+  var configStr = JSON.stringify(config);
+  var pending = 2;
+  var results = { github: false, gas: false };
+
+  function checkDone() {
+    pending--;
+    if (pending > 0) return;
+    if (results.github && results.gas) {
+      setStatus('Both synced', 'ok');
+      showToast('Updated', 'success');
+    } else if (results.github || results.gas) {
+      var which = results.github ? 'GitHub only' : 'GAS only';
+      setStatus('Partial sync (' + which + ')', 'partial');
+      showToast('Partial sync: ' + which, 'error');
+    } else {
+      setStatus('Write failed', 'error');
+      showToast('Failed to write to both sources', 'error');
+    }
+    if (callback) callback();
+  }
+
+  // 1. Write to GitHub API
+  var b64 = btoa(unescape(encodeURIComponent(configStr)));
+  var body = { message: 'Admin update', content: b64 };
+  if (currentSha) body.sha = currentSha;
+
+  fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/config.json', {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token ' + GITHUB_PAT,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.content && d.content.sha) {
+        currentSha = d.content.sha;
+        results.github = true;
+      }
+      // Purge jsdelivr cache
+      return fetch('https://purge.jsdelivr.net/gh/' + GITHUB_REPO + '@main/config.json');
+    })
+    .catch(function() {})
+    .then(function() { checkDone(); });
+
+  // 2. Write to GAS (fullSync via JSONP)
+  var encoded = encodeURIComponent(configStr);
+  var cbName = '__wr_' + Date.now();
+  window[cbName] = function(resp) {
+    delete window[cbName];
+    if (resp && resp.success) results.gas = true;
+    checkDone();
+  };
+  var s = document.createElement('script');
+  s.src = GAS_URL + '?action=write&key=' + encodeURIComponent(GAS_SECRET) +
+    '&writeAction=fullSync&config=' + encoded + '&callback=' + cbName;
+  s.onerror = function() { checkDone(); };
+  document.head.appendChild(s);
+}
+
+// ═══ Actions ═══
+
+function updatePassword() {
+  var pw = document.getElementById('pwInput').value.trim();
+  if (!pw) { showToast('Enter a password', 'error'); return; }
+  config.password = pw;
+  writeConfig(function() {
+    document.getElementById('pwInput').value = '';
+    renderConfig();
+  });
+}
+
+function blockGame(id) {
+  config.blocked = config.blocked || {};
+  config.blocked[id] = true;
+  writeConfig(function() { renderConfig(); });
+}
+
+function unblockGame(id) {
+  if (config.blocked) delete config.blocked[id];
+  writeConfig(function() { renderConfig(); });
+}
+
+function timeblockGame(id) {
+  var dt = document.getElementById('dt_' + id);
+  if (!dt || !dt.value) { showToast('Pick a date/time', 'error'); return; }
+  config.blocked = config.blocked || {};
+  config.blocked[id] = new Date(dt.value).toISOString();
+  writeConfig(function() { renderConfig(); });
+}
+
+function addGame() {
+  var id = document.getElementById('addGameInput').value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!id) { showToast('Enter a game ID', 'error'); return; }
+  config.games = config.games || [];
+  if (config.games.indexOf(id) !== -1) { showToast('Game already exists', 'error'); return; }
+  config.games.push(id);
+  writeConfig(function() {
+    document.getElementById('addGameInput').value = '';
+    renderConfig();
+  });
+}
+
+// ═══ Init ═══
+loadConfig();
+</script>
+</body>
+</html>
