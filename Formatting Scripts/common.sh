@@ -69,7 +69,7 @@ normalize_variant_kind() {
   local raw
   raw="$(trim "${(L)1}")"
   case "$raw" in
-    base|open-in-new-tab|locked|locked-b64)
+    base|open-in-new-tab|locked|locked-b64|secure)
       print -r -- "$raw"
       ;;
     *)
@@ -117,7 +117,7 @@ extract_eagler_tail() {
   rest="${rest# }"
 
   case "$rest" in
-    regular|open-in-new-tab|locked|locked-b64)
+    regular|open-in-new-tab|locked|locked-b64|secure)
       tail_src=""
       ;;
     regular-*|regular_*|regular\ *)
@@ -125,6 +125,9 @@ extract_eagler_tail() {
       ;;
     open-in-new-tab-*|open-in-new-tab_*|open-in-new-tab\ *)
       tail_src="${rest#open-in-new-tab}"
+      ;;
+    secure|secure-*|secure_*|secure\ *)
+      tail_src="${rest#secure}"
       ;;
     locked-b64-*|locked-b64_*|locked-b64\ *)
       tail_src="${rest#locked-b64}"
@@ -147,6 +150,7 @@ extract_eagler_tail() {
 # "drive-mad-regular"    -> "drive-mad"
 derive_standard_base() {
   local stem="$1"
+  stem="${stem%-secure}"
   stem="${stem%-locked-b64}"
   stem="${stem%-locked}"
   stem="${stem%-open-in-new-tab}"
@@ -174,6 +178,7 @@ variant_stem_from_raw() {
       open-in-new-tab) print -r -- "eaglercraft-open-in-new-tab${tail}" ;;
       locked) print -r -- "eaglercraft-locked${tail}" ;;
       locked-b64) print -r -- "eaglercraft-locked-b64${tail}" ;;
+      secure) print -r -- "eaglercraft-secure${tail}" ;;
       base) print -r -- "eaglercraft${tail}" ;;
       *) return 1 ;;
     esac
@@ -186,6 +191,7 @@ variant_stem_from_raw() {
     open-in-new-tab) print -r -- "${base}-open-in-new-tab" ;;
     locked) print -r -- "${base}-locked" ;;
     locked-b64) print -r -- "${base}-locked-b64" ;;
+    secure) print -r -- "${base}-secure" ;;
     base) print -r -- "$base" ;;
     *) return 1 ;;
   esac
@@ -204,6 +210,7 @@ variant_kind_from_stem() {
     rest="${rest#_}"
     rest="${rest# }"
     case "$rest" in
+      secure|secure-*|secure_*|secure\ *) print -r -- "secure" ;;
       locked-b64|locked-b64-*|locked-b64_*|locked-b64\ *) print -r -- "locked-b64" ;;
       locked|locked-*|locked_*|locked\ *) print -r -- "locked" ;;
       open-in-new-tab|open-in-new-tab-*|open-in-new-tab_*|open-in-new-tab\ *) print -r -- "open-in-new-tab" ;;
@@ -214,6 +221,7 @@ variant_kind_from_stem() {
   fi
 
   case "$stem" in
+    *-secure) print -r -- "secure" ;;
     *-locked-b64) print -r -- "locked-b64" ;;
     *-locked) print -r -- "locked" ;;
     *-open-in-new-tab) print -r -- "open-in-new-tab" ;;
@@ -234,6 +242,11 @@ is_protocol_locked() {
   rg_q 'var\s+LOCK_GAME_PROTOCOL_VERSION\s*=\s*"1"' "$1" &&
   rg_q 'var\s+LOCK_FILE_TYPE\s*=\s*"locked"' "$1" &&
   rg_q 'var\s+REAL_PAGE\s*=\s*`' "$1"
+}
+
+is_protocol_secure() {
+  rg_q 'var\s+LOCK_FILE_TYPE\s*=\s*"secure"' "$1" &&
+  rg_q 'var\s+SECURE_INNER_B64\s*=\s*"' "$1"
 }
 
 has_banner_markup() {
