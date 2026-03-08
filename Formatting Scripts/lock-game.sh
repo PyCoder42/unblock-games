@@ -11,7 +11,7 @@
 #   ./lock-game.sh <input-file.html> [password] [format]
 #
 # format:
-#   base | open-in-new-tab | locked | locked-b64
+#   base | open-in-new-tab | locked | locked-b64 | secure
 #
 # Trigger block (optional) in input:
 #   <!-- LOCK-GAME SETTINGS
@@ -29,6 +29,16 @@ source "$SCRIPT_DIR/common.sh"
 
 check_dependencies
 
+# ── Secure config reader ────────────────────────────────────────
+SECURE_CONFIG="${SCRIPT_DIR:h}/.secure-config"
+
+read_secure_config() {
+  local key="$1"
+  if [[ -f "$SECURE_CONFIG" ]]; then
+    perl -ne "if (/^\\Q${key}\\E=(.+)/) { print \$1; exit }" "$SECURE_CONFIG"
+  fi
+}
+
 INPUT="${1:-}"
 CLI_PASSWORD="${2:-}"
 CLI_FORMAT="${3:-}"
@@ -37,7 +47,7 @@ DEFAULT_PASSWORD="supercoolpassword"
 if [[ -z "$INPUT" || ! -f "$INPUT" ]]; then
   echo "Usage: $0 <input-file.html> [password] [format]"
   echo ""
-  echo "Formats: base | open-in-new-tab | locked | locked-b64"
+  echo "Formats: base | open-in-new-tab | locked | locked-b64 | secure"
   exit 1
 fi
 
@@ -76,6 +86,10 @@ extract_real_page_b64() {
 
 extract_real_page_fallback_b64() {
   perl -0777 -ne 'if (/var\s+REAL_PAGE_B64_FALLBACK\s*=\s*"([A-Za-z0-9+\/=]+)"\s*;/s) { print $1 }' "$1"
+}
+
+extract_secure_inner_b64() {
+  perl -0777 -ne 'if (/var\s+SECURE_INNER_B64\s*=\s*"([A-Za-z0-9+\/=]+)"\s*;/s) { print $1 }' "$1"
 }
 
 decode_b64_to_file() {
@@ -132,7 +146,9 @@ remove_trigger_block() {
 # ── Detect input type ────────────────────────────────────────────
 
 INPUT_TYPE="original"
-if is_protocol_locked_b64 "$INPUT"; then
+if is_protocol_secure "$INPUT"; then
+  INPUT_TYPE="secure"
+elif is_protocol_locked_b64 "$INPUT"; then
   INPUT_TYPE="locked-b64"
 elif is_protocol_locked "$INPUT"; then
   INPUT_TYPE="locked"
@@ -145,6 +161,7 @@ LOCKED_FILE="$DIR/$(variant_stem_from_raw "$BASE_RAW" "locked").html"
 B64_FILE="$DIR/$(variant_stem_from_raw "$BASE_RAW" "locked-b64").html"
 OPEN_TAB_FILE="$DIR/$(variant_stem_from_raw "$BASE_RAW" "open-in-new-tab").html"
 REGULAR_FILE="$DIR/$(variant_stem_from_raw "$BASE_RAW" "regular").html"
+SECURE_FILE="$DIR/$(variant_stem_from_raw "$BASE_RAW" "secure").html"
 
 # ── Read settings ────────────────────────────────────────────────
 
@@ -169,7 +186,7 @@ if [[ -n "$CLI_FORMAT" ]]; then
   TARGET_FORMAT="$(normalize_variant_kind "$CLI_FORMAT")"
   if [[ -z "$TARGET_FORMAT" ]]; then
     echo "Invalid format: $CLI_FORMAT"
-    echo "Valid formats: base | open-in-new-tab | locked | locked-b64"
+    echo "Valid formats: base | open-in-new-tab | locked | locked-b64 | secure"
     exit 1
   fi
 fi
@@ -200,6 +217,22 @@ trap lock_game_cleanup EXIT
 case "$INPUT_TYPE" in
   original)
     remove_secret_bar "$INPUT" "$TMP_CLEAN"
+    ;;
+  secure)
+    SECURE_OUTER="$(extract_secure_inner_b64 "$INPUT")"
+    if [[ -z "$SECURE_OUTER" ]]; then
+      echo "Error: Could not extract SECURE_INNER_B64 from secure file: $INPUT"
+      exit 1
+    fi
+    TMP_INNER_SEC="$(mktemp /tmp/lock-game-inner-sec.XXXXXX)"
+    decode_b64_to_file "$SECURE_OUTER" "$TMP_INNER_SEC"
+    PAYLOAD_B64_FROM_INNER="$(extract_real_page_b64 "$TMP_INNER_SEC")"
+    rm -f "$TMP_INNER_SEC"
+    if [[ -z "$PAYLOAD_B64_FROM_INNER" ]]; then
+      echo "Error: Could not extract REAL_PAGE_B64 from inner content: $INPUT"
+      exit 1
+    fi
+    decode_b64_to_file "$PAYLOAD_B64_FROM_INNER" "$TMP_CLEAN"
     ;;
   locked)
     FALLBACK_PAYLOAD_B64="$(extract_real_page_fallback_b64 "$INPUT")"
@@ -838,6 +871,304 @@ write_open_in_new_tab() {
   echo "Created: $outfile"
 }
 
+write_secure() {
+  local outfile="$1"
+
+  local jsdelivr_url gas_url
+  jsdelivr_url="$(read_secure_config "JSDELIVR_URL")"
+  gas_url="$(read_secure_config "GAS_URL")"
+
+  if [[ -z "$jsdelivr_url" && -z "$gas_url" ]]; then
+    echo "Error: .secure-config not found or missing JSDELIVR_URL/GAS_URL."
+    echo "Run setup-secure.sh first."
+    exit 1
+  fi
+
+  # Derive GAME_ID from BASE_CORE (e.g., "drive-mad", "eaglercraft-1-12")
+  local game_id="$BASE_CORE"
+
+  # Escape URLs for JS embedding
+  local jsdelivr_js gas_js game_id_js
+  jsdelivr_js="$(printf '%s' "$jsdelivr_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+  gas_js="$(printf '%s' "$gas_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+  game_id_js="$(printf '%s' "$game_id" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+
+  # Build the INNER HTML in a temp file
+  local tmp_inner
+  tmp_inner="$(mktemp /tmp/lock-game-secure-inner.XXXXXX)"
+
+  cat > "$tmp_inner" <<EOF_SECURE_INNER_HEAD
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Loading...</title>
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+    font-family: Arial, sans-serif;
+  }
+  .password-box {
+    background: #16213e;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  .password-box h2 {
+    color: #e94560;
+    margin-top: 0;
+  }
+  .password-box input {
+    padding: 10px 16px;
+    font-size: 16px;
+    border: 2px solid #e94560;
+    border-radius: 6px;
+    background: #0f3460;
+    color: white;
+    outline: none;
+    width: 220px;
+  }
+  .password-box button {
+    padding: 10px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    background: #e94560;
+    color: white;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .password-box button:hover { background: #c73652; }
+  .error-msg { color: #e94560; margin-top: 12px; display: none; }
+  .loading-msg { color: #8f94fb; font-size: 18px; }
+</style>
+</head>
+<body>
+EOF_SECURE_INNER_HEAD
+
+  # Append banner block INSIDE the inner HTML
+  if [[ "$SHOW_BANNER" == "true" ]]; then
+    append_banner_block "$tmp_inner"
+  fi
+
+  cat >> "$tmp_inner" <<'EOF_SECURE_INNER_BODY'
+<div id="loadingScreen" class="password-box">
+  <p class="loading-msg">Loading...</p>
+</div>
+<div class="password-box" id="passwordScreen" style="display:none;">
+  <h2>Password Required</h2>
+  <div>
+    <input type="password" id="pwInput" placeholder="Enter password..." onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()">Go</button>
+  </div>
+  <p class="error-msg" id="errorMsg">Wrong password. Try again.</p>
+</div>
+<script>
+EOF_SECURE_INNER_BODY
+
+  # Write JS config variables
+  cat >> "$tmp_inner" <<EOF_SECURE_INNER_CONFIG
+var GAME_ID = "$game_id_js";
+var JSDELIVR_URL = "$jsdelivr_js";
+var GAS_URL = "$gas_js";
+var SHOW_OPEN_IN_NEW_TAB_BANNER = $SHOW_BANNER;
+var REAL_PAGE_B64 = "$PAYLOAD_B64";
+EOF_SECURE_INNER_CONFIG
+
+  # Write all the JS logic
+  cat >> "$tmp_inner" <<'EOF_SECURE_INNER_JS'
+
+var remotePassword = '';
+
+function getGameHtml() { return atob(REAL_PAGE_B64); }
+
+function removeBanner() {
+  var bar = document.getElementById('secretBar');
+  if (bar) bar.remove();
+  var frame = document.getElementById('gameFrame');
+  if (frame) { frame.style.top = '0'; frame.style.height = '100%'; }
+}
+
+function openRealPage() {
+  var wasFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  var html = getGameHtml();
+
+  if (wasFullscreen && SHOW_OPEN_IN_NEW_TAB_BANNER) {
+    var pwScreen = document.getElementById('passwordScreen');
+    if (pwScreen) pwScreen.remove();
+    var loadScreen = document.getElementById('loadingScreen');
+    if (loadScreen) loadScreen.remove();
+    document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;height:100vh;background:#000;';
+    document.documentElement.style.cssText = 'margin:0;padding:0;height:100%;';
+    var oldStyles = document.head.querySelectorAll('style');
+    for (var i = 0; i < oldStyles.length; i++) oldStyles[i].remove();
+
+    var iframe = document.createElement('iframe');
+    iframe.id = 'gameFrame';
+    iframe.style.cssText = 'position:fixed;left:0;top:48px;width:100%;height:calc(100% - 48px);border:none;';
+    iframe.setAttribute('allowfullscreen', '');
+    document.body.appendChild(iframe);
+    var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(html);
+    iframeDoc.close();
+  } else {
+    removeBanner();
+    document.open();
+    document.write(html);
+    document.close();
+  }
+}
+
+function checkPw() {
+  var input = document.getElementById('pwInput').value;
+  if (input === remotePassword) {
+    openRealPage();
+  } else {
+    document.getElementById('errorMsg').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+  }
+}
+
+function showPasswordPrompt() {
+  var loadScreen = document.getElementById('loadingScreen');
+  if (loadScreen) loadScreen.style.display = 'none';
+  var pwScreen = document.getElementById('passwordScreen');
+  if (pwScreen) pwScreen.style.display = '';
+  var pwInput = document.getElementById('pwInput');
+  if (pwInput) pwInput.focus();
+}
+
+function showBlocked() {
+  // Fake Chrome "This site can't be reached" error page
+  document.open();
+  document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<title>' + location.hostname + '</title>' +
+    '<style>' +
+    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;' +
+    'background:#fff;color:#333;margin:0;padding:40px 40px 20px;line-height:1.6;}' +
+    '.icon{width:48px;height:48px;margin-bottom:16px;opacity:0.3;}' +
+    'h1{font-size:20px;font-weight:normal;color:#333;margin:0 0 6px;}' +
+    '.desc{font-size:14px;color:#646464;margin:0 0 16px;}' +
+    '.error-code{font-size:12px;color:#999;margin:24px 0 16px;}' +
+    '.suggestions{font-size:14px;color:#646464;margin-top:24px;}' +
+    '.suggestions ul{padding-left:20px;margin:8px 0;}' +
+    '.suggestions li{margin:4px 0;}' +
+    'a{color:#4285f4;text-decoration:none;}' +
+    'a:hover{text-decoration:underline;}' +
+    '.btn{display:inline-block;background:#4285f4;color:#fff;padding:8px 24px;' +
+    'border-radius:4px;font-size:14px;margin-top:16px;cursor:pointer;border:none;}' +
+    '.btn:hover{background:#3367d6;}' +
+    '</style></head><body>' +
+    '<svg class="icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="24" cy="24" r="22" fill="none" stroke="#999" stroke-width="2"/>' +
+    '<path d="M24 14v14M24 34v2" stroke="#999" stroke-width="3" stroke-linecap="round"/>' +
+    '</svg>' +
+    '<h1>This site can\u2019t be reached</h1>' +
+    '<p class="desc">The connection was reset.</p>' +
+    '<p class="desc">Try:</p>' +
+    '<div class="suggestions"><ul>' +
+    '<li>Checking the connection</li>' +
+    '<li>Checking the proxy and the firewall</li>' +
+    '<li>Running Windows Network Diagnostics</li>' +
+    '</ul></div>' +
+    '<p class="error-code">ERR_CONNECTION_RESET</p>' +
+    '</body></html>');
+  document.close();
+}
+
+function processConfig(config) {
+  var blockVal = config.blocked && config.blocked[GAME_ID];
+  if (blockVal === true) { showBlocked(); return; }
+  if (typeof blockVal === 'string' && new Date(blockVal) > new Date()) { showBlocked(); return; }
+  remotePassword = config.password || '';
+  if (!remotePassword) {
+    // No password set — load game directly
+    openRealPage();
+    return;
+  }
+  showPasswordPrompt();
+}
+
+// Dual-source config fetch: jsdelivr primary, GAS fallback
+(function() {
+  var fetched = false;
+
+  function tryJsdelivr() {
+    if (!JSDELIVR_URL) { tryGas(); return; }
+    fetch(JSDELIVR_URL + '?t=' + Date.now())
+      .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(config) { if (!fetched) { fetched = true; processConfig(config); } })
+      .catch(function() { tryGas(); });
+  }
+
+  function tryGas() {
+    if (!GAS_URL) { showBlocked(); return; }
+    var cbName = '__sc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    window[cbName] = function(config) {
+      delete window[cbName];
+      if (!fetched) { fetched = true; processConfig(config); }
+    };
+    var s = document.createElement('script');
+    s.src = GAS_URL + '?action=read&callback=' + cbName;
+    s.onerror = function() { if (!fetched) showBlocked(); };
+    document.head.appendChild(s);
+    setTimeout(function() { if (!fetched && window[cbName]) { delete window[cbName]; showBlocked(); } }, 10000);
+  }
+
+  tryJsdelivr();
+})();
+
+if (!SHOW_OPEN_IN_NEW_TAB_BANNER) {
+  removeBanner();
+}
+EOF_SECURE_INNER_JS
+
+  cat >> "$tmp_inner" <<'EOF_SECURE_INNER_CLOSE'
+</script>
+</body>
+</html>
+EOF_SECURE_INNER_CLOSE
+
+  # Base64-encode the entire inner HTML
+  local inner_b64
+  inner_b64="$(base64 < "$tmp_inner" | tr -d '\n')"
+  rm -f "$tmp_inner"
+
+  # Write the OUTER HTML (minimal decoder)
+  cat > "$outfile" <<EOF_SECURE_OUTER
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Loading...</title>
+<!-- LOCK-GAME SETTINGS
+PASSWORD_ENABLED: $PASSWORD_ENABLED
+SHOW_OPEN_IN_NEW_TAB_BANNER: $SHOW_BANNER
+GENERATE_OPEN_IN_NEW_TAB_VERSION: $GENERATE_OPEN_TAB_VERSION
+PASSWORD: $PASSWORD_COMMENT_SAFE
+OUTPUT_FORMAT: secure
+-->
+<script>
+var LOCK_GAME_PROTOCOL_VERSION = "1";
+var LOCK_FILE_TYPE = "secure";
+var SECURE_INNER_B64 = "$inner_b64";
+(function(){try{var h=atob(SECURE_INNER_B64);document.open();document.write(h);document.close();}catch(e){}})();
+</script>
+</head>
+<body></body>
+</html>
+EOF_SECURE_OUTER
+
+  echo "Created: $outfile"
+}
+
 # ── Main ─────────────────────────────────────────────────────────
 
 echo "Input:                      $INPUT"
@@ -862,6 +1193,9 @@ case "$TARGET_FORMAT" in
     ;;
   locked-b64)
     write_locked_b64 "$B64_FILE"
+    ;;
+  secure)
+    write_secure "$SECURE_FILE"
     ;;
 esac
 
