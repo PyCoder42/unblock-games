@@ -5,3 +5,5 @@ node_modules/
 /tmp/
 *.log
 .tmp.*/
+.secure-config
+admin-panel.html
