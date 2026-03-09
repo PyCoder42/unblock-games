@@ -3,7 +3,9 @@
   "passwords": [
     "67"
   ],
-  "blocked": {},
+  "blocked": {
+    "drive-mad": true
+  },
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
@@ -14,5 +16,9 @@
     "pokemon-showdown",
     "smash-karts"
   ],
-  "allowedIps": {}
+  "allowedIps": {
+    "146.75.164.216": {
+      "label": "Me"
+    }
+  }
 }
