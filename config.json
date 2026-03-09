@@ -1,1 +1,32 @@
-{"password":"67","blocked":{},"games":["drive-mad","escape-road-1","escape-road-2","gn-math","eaglercraft-1-12","pokemon-showdown","smash-karts","fake"]}
+{
+  "password": "supercoolpassword",
+  "passwords": [
+    "supercoolpassword",
+    "67"
+  ],
+  "blocked": {},
+  "games": [
+    "drive-mad",
+    "eaglercraft-1-12",
+    "escape-road-1",
+    "escape-road-2",
+    "fake",
+    "gn-math",
+    "pokemon-showdown",
+    "smash-karts"
+  ],
+  "allowedIps": {
+    "0.0.0.0": {
+      "label": "Me"
+    },
+    "127.0.0.1": {
+      "label": "Me"
+    },
+    "146.75.164.216": {
+      "label": "Me"
+    },
+    "5D:A6:90:E2:CB:0E:30:34:52:70:51:50:89:72:5F:92:6C:53:18:E7:46:05:34:7B:D0:89:45:90:C6:D5:01:67": {
+      "label": "Me"
+    }
+  }
+}
