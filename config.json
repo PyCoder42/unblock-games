@@ -4,13 +4,15 @@
     "67"
   ],
   "blocked": {
-    "drive-mad": true
+    "drive-mad": true,
+    "smash-karts": true
   },
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
     "escape-road-1",
     "escape-road-2",
+    "fake",
     "gn-math",
     "pokemon-showdown",
     "smash-karts"
