@@ -3,9 +3,7 @@
   "passwords": [
     "67"
   ],
-  "blocked": {
-    "pokemon-showdown": true
-  },
+  "blocked": {},
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
