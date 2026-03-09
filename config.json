@@ -4,7 +4,8 @@
     "67"
   ],
   "blocked": {
-    "drive-mad": true
+    "drive-mad": true,
+    "gn-math": true
   },
   "games": [
     "drive-mad",
