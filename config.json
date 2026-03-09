@@ -3,9 +3,7 @@
   "passwords": [
     "67"
   ],
-  "blocked": {
-    "drive-mad": true
-  },
+  "blocked": {},
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
