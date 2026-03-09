@@ -19,9 +19,6 @@
   "allowedIps": {
     "146.75.164.216": {
       "label": "Me"
-    },
-    "198.51.100.42": {
-      "label": "Codex Temp"
     }
   }
 }
