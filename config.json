@@ -16,9 +16,5 @@
     "pokemon-showdown",
     "smash-karts"
   ],
-  "allowedIps": {
-    "146.75.164.216": {
-      "label": "Me"
-    }
-  }
+  "allowedIps": {}
 }
