@@ -17,9 +17,6 @@
     "smash-karts"
   ],
   "allowedIps": {
-    "146.75.164.216": {
-      "label": "Me"
-    },
     "192.150.244.11": {
       "label": "Me (ChromeBook)"
     }
