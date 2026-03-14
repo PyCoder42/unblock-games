@@ -1,7 +1,7 @@
 {
-  "password": "supercoolpassword",
+  "password": "67",
   "passwords": [
-    "supercoolpassword"
+    "67"
   ],
   "blocked": {},
   "games": [
@@ -9,11 +9,15 @@
     "eaglercraft-1-12",
     "escape-road-1",
     "escape-road-2",
+    "fake",
     "gn-math",
     "pokemon-showdown",
     "smash-karts"
   ],
   "allowedIps": {
+    "146.75.164.216": {
+      "label": "Me"
+    },
     "192.150.244.11": {
       "label": "Me (ChromeBook)"
     }
