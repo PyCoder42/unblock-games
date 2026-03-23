@@ -3,9 +3,7 @@
   "passwords": [
     "supercoolpassword"
   ],
-  "blocked": {
-    "escape-road-city-2": true
-  },
+  "blocked": {},
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
