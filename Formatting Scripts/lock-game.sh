@@ -608,7 +608,10 @@ EOF_LOCKED_PAYLOAD
   cat >> "$outfile" <<'EOF_LOCKED_FOOTER'
 `;
 
-function getGameHtml() { return REAL_PAGE; }
+function getGameHtml() {
+  try { return atob(REAL_PAGE_B64_FALLBACK); } catch(e) {}
+  return REAL_PAGE;
+}
 
 function removeBanner() {
   var bar = document.getElementById('secretBar');
@@ -874,12 +877,22 @@ write_open_in_new_tab() {
 write_secure() {
   local outfile="$1"
 
-  local jsdelivr_url gas_url
+  local jsdelivr_url unpkg_url
   jsdelivr_url="$(read_secure_config "JSDELIVR_URL")"
-  gas_url="$(read_secure_config "GAS_URL")"
+  unpkg_url="$(read_secure_config "UNPKG_URL")"
 
-  if [[ -z "$jsdelivr_url" && -z "$gas_url" ]]; then
-    echo "Error: .secure-config not found or missing JSDELIVR_URL/GAS_URL."
+  # Read GITHUB_REPO early so we can derive the raw URL
+  local github_repo
+  github_repo="$(read_secure_config "GITHUB_REPO")"
+
+  local github_raw_url
+  github_raw_url="$(read_secure_config "GITHUB_RAW_URL")"
+  if [[ -z "$github_raw_url" && -n "$github_repo" ]]; then
+    github_raw_url="https://raw.githubusercontent.com/${github_repo}/main/config.json"
+  fi
+
+  if [[ -z "$jsdelivr_url" && -z "$github_repo" ]]; then
+    echo "Error: .secure-config not found or missing JSDELIVR_URL/GITHUB_REPO."
     echo "Run setup-secure.sh first."
     exit 1
   fi
@@ -888,10 +901,31 @@ write_secure() {
   local game_id="$BASE_CORE"
 
   # Escape URLs for JS embedding
-  local jsdelivr_js gas_js game_id_js
+  local jsdelivr_js github_raw_js unpkg_js game_id_js
   jsdelivr_js="$(printf '%s' "$jsdelivr_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
-  gas_js="$(printf '%s' "$gas_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+  github_raw_js="$(printf '%s' "$github_raw_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+  unpkg_js="$(printf '%s' "$unpkg_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
   game_id_js="$(printf '%s' "$game_id" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+
+  # Encrypt game HTML for CDN-hosted encrypted game data
+  local game_data_dir game_data_path game_data_url game_key_hex game_key_js game_data_url_js
+  game_data_dir="${SCRIPT_DIR:h}/game-data"
+  mkdir -p "$game_data_dir"
+  game_data_path="$game_data_dir/${game_id}.enc.json"
+
+  if [[ -n "$github_repo" ]]; then
+    game_data_url="https://cdn.jsdelivr.net/gh/${github_repo}@main/game-data/${game_id}.enc.json"
+  else
+    game_data_url=""
+  fi
+
+  game_key_hex="$(node "$SCRIPT_DIR/generate-enc-game-data.mjs" "$TMP_PAYLOAD" "$game_id" "$game_data_path")"
+  if [[ -z "$game_key_hex" ]]; then
+    echo "Error: Failed to encrypt game data for '$game_id'. Is Node.js installed?"
+    exit 1
+  fi
+  game_key_js="$(printf '%s' "$game_key_hex" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
+  game_data_url_js="$(printf '%s' "$game_data_url" | perl -pe 's/\\/\\\\/g; s/"/\\"/g;')"
 
   # Build the INNER HTML in a temp file
   local tmp_inner
@@ -976,17 +1010,412 @@ EOF_SECURE_INNER_BODY
   cat >> "$tmp_inner" <<EOF_SECURE_INNER_CONFIG
 var GAME_ID = "$game_id_js";
 var JSDELIVR_URL = "$jsdelivr_js";
-var GAS_URL = "$gas_js";
+var GITHUB_RAW_URL = "$github_raw_js";
+var UNPKG_URL = "$unpkg_js";
 var SHOW_OPEN_IN_NEW_TAB_BANNER = $SHOW_BANNER;
-var REAL_PAGE_B64 = "$PAYLOAD_B64";
+var GAME_KEY = "$game_key_js";
+var GAME_DATA_URL = "$game_data_url_js";
 EOF_SECURE_INNER_CONFIG
 
   # Write all the JS logic
   cat >> "$tmp_inner" <<'EOF_SECURE_INNER_JS'
 
-var remotePassword = '';
+var remotePasswords = [];
+var clientIps = [];
+var clientIpPromise = detectClientIps();
 
-function getGameHtml() { return atob(REAL_PAGE_B64); }
+function _hexToBytes(hex) {
+  var arr = new Uint8Array(hex.length / 2);
+  for (var i = 0; i < arr.length; i++) arr[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return arr;
+}
+function _b64ToBytes(b64) {
+  var bin = atob(b64);
+  var arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+function fetchAndDecryptGame() {
+  return fetch(GAME_DATA_URL)
+    .then(function(resp) { return resp.json(); })
+    .then(function(enc) {
+      var keyBytes = _hexToBytes(GAME_KEY);
+      return crypto.subtle.importKey('raw', keyBytes, {name: 'AES-GCM'}, false, ['decrypt'])
+        .then(function(key) {
+          var iv = _hexToBytes(enc.iv);
+          var ct = _b64ToBytes(enc.ciphertext);
+          var tag = _hexToBytes(enc.authTag);
+          var combined = new Uint8Array(ct.length + tag.length);
+          combined.set(ct);
+          combined.set(tag, ct.length);
+          return crypto.subtle.decrypt({name: 'AES-GCM', iv: iv}, key, combined);
+        })
+        .then(function(decrypted) { return new TextDecoder().decode(decrypted); });
+    });
+}
+function loadAndRunGame() {
+  return fetchAndDecryptGame().then(function(html) { openRealPage(html); });
+}
+
+function trimString(value) {
+  return String(value == null ? '' : value).replace(/^\s+|\s+$/g, '');
+}
+
+function normalizeGameId(value) {
+  var normalized = trimString(value).toLowerCase();
+  if (!normalized) return '';
+
+  normalized = normalized.replace(/\.html$/i, '');
+  normalized = normalized.replace(/eaglrcraft/g, 'eaglercraft');
+  normalized = normalized.replace(/open[-\s]*in[-\s]*new[-\s]*tab/g, ' ');
+  normalized = normalized.replace(/locked[-\s]*b64/g, ' ');
+  normalized = normalized.replace(/\b(secure|regular|locked)\b/g, ' ');
+  normalized = normalized.replace(/[._]+/g, ' ');
+  normalized = normalized.replace(/[^a-z0-9]+/g, '-');
+  normalized = normalized.replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+  return normalized;
+}
+
+function escapeHtmlText(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function uniquePush(list, value) {
+  var normalized = trimString(value);
+  if (!normalized || list.indexOf(normalized) !== -1) return;
+  list.push(normalized);
+}
+
+function extractIps(text, list) {
+  if (!text) return;
+
+  text.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, function(ip) {
+    if (isUsableAllowedIp(ip)) uniquePush(list, ip);
+    return ip;
+  });
+
+  text.replace(/\b(?:[A-F0-9]{1,4}:){2,}[A-F0-9:]{1,4}\b/ig, function(ip) {
+    if ((ip.indexOf('::') === -1 || ip.length > 2) && isUsableAllowedIp(ip)) uniquePush(list, ip);
+    return ip;
+  });
+}
+
+function isPlaceholderIp(ip) {
+  var normalized = trimString(ip).toLowerCase();
+  return normalized === '0.0.0.0' ||
+    normalized === '::' ||
+    normalized === '0:0:0:0:0:0:0:0' ||
+    normalized === '::ffff:0.0.0.0';
+}
+
+function isLoopbackIp(ip) {
+  var normalized = trimString(ip).toLowerCase();
+  return /^127\./.test(normalized) ||
+    normalized === '::1' ||
+    normalized === '0:0:0:0:0:0:0:1' ||
+    normalized === 'localhost';
+}
+
+function isPrivateIpv4(ip) {
+  return /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(ip);
+}
+
+function isValidIpv4(ip) {
+  var normalized = trimString(ip);
+  if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(normalized)) return false;
+
+  return normalized.split('.').every(function(part) {
+    var numeric = Number(part);
+    return numeric >= 0 && numeric <= 255;
+  });
+}
+
+function isPublicIpv4(ip) {
+  return isValidIpv4(ip) &&
+    !isPlaceholderIp(ip) &&
+    !isLoopbackIp(ip) &&
+    !/^169\.254\./.test(ip) &&
+    !isPrivateIpv4(ip);
+}
+
+function isLikelyIpv6(ip) {
+  var normalized = trimString(ip).toLowerCase();
+  var parts;
+  var nonEmpty = 0;
+  var i;
+
+  if (normalized.indexOf(':') === -1) return false;
+  if (!/^[0-9a-f:]+$/.test(normalized)) return false;
+  if (normalized.indexOf(':::') !== -1) return false;
+
+  parts = normalized.split(':');
+  for (i = 0; i < parts.length; i++) {
+    if (!parts[i]) continue;
+    if (parts[i].length > 4) return false;
+    nonEmpty++;
+  }
+
+  if (normalized.indexOf('::') === -1) {
+    return parts.length === 8 && nonEmpty === 8;
+  }
+  return parts.length <= 8 && nonEmpty > 0;
+}
+
+function isUsableAllowedIp(ip) {
+  var normalized = trimString(ip);
+  if (!normalized) return false;
+  if (isPlaceholderIp(normalized) || isLoopbackIp(normalized)) return false;
+  return isValidIpv4(normalized) || isLikelyIpv6(normalized);
+}
+
+function scoreIp(ip) {
+  if (isPrivateIpv4(ip)) return 0;
+  if (isPublicIpv4(ip)) return 1;
+  if (isLikelyIpv6(ip) && !isPlaceholderIp(ip) && !isLoopbackIp(ip)) return 2;
+  if (isPlaceholderIp(ip) || isLoopbackIp(ip)) return 9;
+  return 8;
+}
+
+function sortIps(list) {
+  return list.slice().sort(function(a, b) {
+    var diff = scoreIp(a) - scoreIp(b);
+    if (diff !== 0) return diff;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+}
+
+function detectViaWebRtc(list, done) {
+  var RTCPeer = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+  if (!RTCPeer) {
+    done();
+    return;
+  }
+
+  var finished = false;
+  var pc;
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+    try { if (pc) pc.close(); } catch (error) {}
+    done();
+  }
+
+  try {
+    pc = new RTCPeer({ iceServers: [] });
+    if (pc.createDataChannel) pc.createDataChannel('');
+    pc.onicecandidate = function(event) {
+      if (!event || !event.candidate) {
+        finish();
+        return;
+      }
+      extractIps(event.candidate.candidate || '', list);
+    };
+    pc.createOffer()
+      .then(function(offer) {
+        extractIps(offer && offer.sdp || '', list);
+        return pc.setLocalDescription(offer);
+      })
+      .then(function() {
+        extractIps(pc.localDescription && pc.localDescription.sdp || '', list);
+      })
+      .catch(function() {
+        finish();
+      });
+  } catch (error) {
+    finish();
+    return;
+  }
+
+  setTimeout(finish, 1800);
+}
+
+function detectViaPublicLookup(list, done) {
+  if (!window.fetch) {
+    done();
+    return;
+  }
+
+  var finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    done();
+  }
+
+  fetch('https://api.ipify.org?format=json', { cache: 'no-store' })
+    .then(function(response) { return response.ok ? response.json() : null; })
+    .then(function(payload) {
+      if (payload && payload.ip) uniquePush(list, payload.ip);
+    })
+    .catch(function() {})
+    .then(finish);
+
+  setTimeout(finish, 1800);
+}
+
+function detectClientIps() {
+  return new Promise(function(resolve) {
+    var collected = [];
+    var pending = 2;
+    var resolved = false;
+
+    function finishOne() {
+      pending--;
+      if (pending > 0 || resolved) return;
+      resolved = true;
+      clientIps = sortIps(collected);
+      resolve(clientIps);
+    }
+
+    detectViaWebRtc(collected, finishOne);
+    detectViaPublicLookup(collected, finishOne);
+
+    setTimeout(function() {
+      if (resolved) return;
+      resolved = true;
+      clientIps = sortIps(collected);
+      resolve(clientIps);
+    }, 2600);
+  });
+}
+
+function primaryCurrentIp() {
+  var sorted = sortIps(clientIps).filter(function(ip) {
+    return isUsableAllowedIp(ip) && scoreIp(ip) < 8;
+  });
+  if (sorted.length) return sorted[0];
+  return clientIps.length ? clientIps[0] : 'Unavailable';
+}
+
+function normalizePasswordList(rawConfig) {
+  var source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  var output = [];
+
+  function addPassword(value) {
+    var normalized = trimString(value);
+    if (!normalized || output.indexOf(normalized) !== -1) return;
+    output.push(normalized);
+  }
+
+  addPassword(source.password);
+  if (Array.isArray(source.passwords)) {
+    source.passwords.forEach(addPassword);
+  }
+
+  return output;
+}
+
+function normalizeBlockedMap(rawBlocked) {
+  var output = {};
+  var blocked = rawBlocked && typeof rawBlocked === 'object' ? rawBlocked : {};
+
+  Object.keys(blocked).forEach(function(key) {
+    var normalizedKey = normalizeGameId(key);
+    var value = blocked[key];
+    if (!normalizedKey) return;
+    if (value === true) {
+      output[normalizedKey] = true;
+    } else if (typeof value === 'string' && trimString(value)) {
+      output[normalizedKey] = trimString(value);
+    }
+  });
+
+  return output;
+}
+
+function normalizeAllowedIps(rawAllowedIps) {
+  var output = {};
+  var i;
+
+  function addIpValue(ipValue, labelValue) {
+    String(ipValue == null ? '' : ipValue).split(',').forEach(function(candidate) {
+      var normalizedIp = trimString(candidate);
+      if (!isUsableAllowedIp(normalizedIp)) return;
+      output[normalizedIp] = { label: trimString(labelValue) };
+    });
+  }
+
+  if (!rawAllowedIps) return output;
+
+  if (Array.isArray(rawAllowedIps)) {
+    for (i = 0; i < rawAllowedIps.length; i++) {
+      var entry = rawAllowedIps[i];
+      if (typeof entry === 'string') {
+        entry = { ip: entry, label: '' };
+      }
+      if (entry && (entry.ip || entry.address)) {
+        addIpValue(entry.ip || entry.address, entry.label);
+      }
+    }
+  } else {
+    Object.keys(rawAllowedIps).forEach(function(ip) {
+      var normalizedIp = trimString(ip);
+      if (!normalizedIp) return;
+      var value = rawAllowedIps[ip];
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        addIpValue(normalizedIp, value.label);
+      } else {
+        addIpValue(normalizedIp, value);
+      }
+    });
+  }
+
+  return output;
+}
+
+function normalizeConfig(rawConfig) {
+  var source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  var blocked = normalizeBlockedMap(source.blocked);
+  var games = {};
+  var passwords = normalizePasswordList(source);
+
+  (Array.isArray(source.games) ? source.games : []).forEach(function(gameId) {
+    var normalizedGameId = normalizeGameId(gameId);
+    if (normalizedGameId) games[normalizedGameId] = true;
+  });
+
+  Object.keys(blocked).forEach(function(gameId) {
+    games[gameId] = true;
+  });
+
+  return {
+    password: passwords[0] || '',
+    passwords: passwords,
+    blocked: blocked,
+    games: Object.keys(games).sort(),
+    allowedIps: normalizeAllowedIps(source.allowedIps || source.allowedIPs || source.allowedIpAddresses),
+  };
+}
+
+
+function normalizeAllowedIpMap(config) {
+  var output = {};
+  var normalizedAllowedIps = normalizeAllowedIps(config && (config.allowedIps || config.allowedIPs || config.allowedIpAddresses));
+
+  Object.keys(normalizedAllowedIps).forEach(function(ip) {
+    output[trimString(ip)] = true;
+  });
+  return output;
+}
+
+function isAllowedIp(config) {
+  var allowedIpMap = normalizeAllowedIpMap(config);
+  var usableClientIps = sortIps(clientIps).filter(function(ip) {
+    return isUsableAllowedIp(ip);
+  });
+  var i;
+
+  for (i = 0; i < usableClientIps.length; i++) {
+    if (allowedIpMap[usableClientIps[i]]) return true;
+  }
+  return false;
+}
 
 function removeBanner() {
   var bar = document.getElementById('secretBar');
@@ -995,9 +1424,8 @@ function removeBanner() {
   if (frame) { frame.style.top = '0'; frame.style.height = '100%'; }
 }
 
-function openRealPage() {
+function openRealPage(html) {
   var wasFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-  var html = getGameHtml();
 
   if (wasFullscreen && SHOW_OPEN_IN_NEW_TAB_BANNER) {
     var pwScreen = document.getElementById('passwordScreen');
@@ -1028,8 +1456,18 @@ function openRealPage() {
 
 function checkPw() {
   var input = document.getElementById('pwInput').value;
-  if (input === remotePassword) {
-    openRealPage();
+  if (remotePasswords.indexOf(input) !== -1) {
+    var pwBtn = document.querySelector('#passwordScreen button');
+    var pwField = document.getElementById('pwInput');
+    var errMsg = document.getElementById('errorMsg');
+    if (pwBtn) pwBtn.disabled = true;
+    if (pwField) pwField.disabled = true;
+    if (errMsg) errMsg.style.display = 'none';
+    loadAndRunGame().catch(function() {
+      if (errMsg) { errMsg.textContent = 'Failed to load game data. Check your connection.'; errMsg.style.display = 'block'; }
+      if (pwBtn) pwBtn.disabled = false;
+      if (pwField) { pwField.disabled = false; pwField.value = ''; }
+    });
   } else {
     document.getElementById('errorMsg').style.display = 'block';
     document.getElementById('pwInput').value = '';
@@ -1047,6 +1485,8 @@ function showPasswordPrompt() {
 
 function showBlocked() {
   // Fake Chrome "This site can't be reached" error page
+  var currentIp = primaryCurrentIp();
+  var copyValueJs = JSON.stringify(currentIp);
   document.open();
   document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
     '<title>' + location.hostname + '</title>' +
@@ -1060,6 +1500,13 @@ function showBlocked() {
     '.suggestions{font-size:14px;color:#646464;margin-top:24px;}' +
     '.suggestions ul{padding-left:20px;margin:8px 0;}' +
     '.suggestions li{margin:4px 0;}' +
+    '.ip-box{margin-top:20px;padding:12px 14px;border-radius:8px;background:#f6f8fc;border:1px solid #d6def3;max-width:520px;}' +
+    '.ip-title{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;color:#5f6368;text-transform:uppercase;margin-bottom:6px;}' +
+    '.ip-value{font-size:15px;color:#202124;word-break:break-all;}' +
+    '.ip-actions{margin-top:10px;display:flex;align-items:center;gap:10px;}' +
+    '.copy-btn{display:inline-block;background:#4285f4;color:#fff;padding:8px 16px;border-radius:4px;font-size:14px;cursor:pointer;border:none;}' +
+    '.copy-btn:hover{background:#3367d6;}' +
+    '.copy-status{font-size:13px;color:#5f6368;}' +
     'a{color:#4285f4;text-decoration:none;}' +
     'a:hover{text-decoration:underline;}' +
     '.btn{display:inline-block;background:#4285f4;color:#fff;padding:8px 24px;' +
@@ -1076,53 +1523,289 @@ function showBlocked() {
     '<div class="suggestions"><ul>' +
     '<li>Checking the connection</li>' +
     '<li>Checking the proxy and the firewall</li>' +
-    '<li>Running Windows Network Diagnostics</li>' +
+    '<li>Running Network Diagnostics</li>' +
     '</ul></div>' +
+    '<div class="ip-box">' +
+    '<span class="ip-title">Current IP</span>' +
+    '<span class="ip-value">' + escapeHtmlText(currentIp) + '</span>' +
+    '<div class="ip-actions">' +
+    '<button class="copy-btn" onclick="return copyCurrentIp()">Copy IP</button>' +
+    '<span class="copy-status" id="copyStatus"></span>' +
+    '</div>' +
+    '</div>' +
     '<p class="error-code">ERR_CONNECTION_RESET</p>' +
+    '<script>' +
+    'function copyCurrentIp(){' +
+      'var value=' + copyValueJs + ';' +
+      'var status=document.getElementById("copyStatus");' +
+      'if(!value||value==="Unavailable"){if(status)status.textContent="Unavailable";return false;}' +
+      'function fallback(){window.prompt("Copy IP", value);if(status)status.textContent="Copy manually";}' +
+      'if(navigator.clipboard&&navigator.clipboard.writeText){' +
+        'navigator.clipboard.writeText(value).then(function(){if(status)status.textContent="Copied";}).catch(fallback);' +
+      '}else{fallback();}' +
+      'return false;' +
+    '}' +
+    '</scr' + 'ipt>' +
     '</body></html>');
   document.close();
 }
 
 function processConfig(config) {
-  var blockVal = config.blocked && config.blocked[GAME_ID];
-  if (blockVal === true) { showBlocked(); return; }
-  if (typeof blockVal === 'string' && new Date(blockVal) > new Date()) { showBlocked(); return; }
-  remotePassword = config.password || '';
-  if (!remotePassword) {
+  var normalizedConfig = normalizeConfig(config);
+  var blockVal = normalizedConfig.blocked && normalizedConfig.blocked[GAME_ID];
+  var isBlocked = blockVal === true || (typeof blockVal === 'string' && new Date(blockVal) > new Date());
+  if (isBlocked && !isAllowedIp(normalizedConfig)) { showBlocked(); return; }
+  remotePasswords = normalizedConfig.passwords || [];
+  if (!remotePasswords.length) {
     // No password set — load game directly
-    openRealPage();
+    loadAndRunGame();
     return;
   }
   showPasswordPrompt();
 }
 
-// Dual-source config fetch: jsdelivr primary, GAS fallback
-(function() {
-  var fetched = false;
+function compareJsdelivrVersions(left, right) {
+  var leftParts = trimString(left).split('.');
+  var rightParts = trimString(right).split('.');
+  var length = Math.max(leftParts.length, rightParts.length);
+  var i;
 
-  function tryJsdelivr() {
-    if (!JSDELIVR_URL) { tryGas(); return; }
-    fetch(JSDELIVR_URL + '?t=' + Date.now())
-      .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function(config) { if (!fetched) { fetched = true; processConfig(config); } })
-      .catch(function() { tryGas(); });
+  for (i = 0; i < length; i++) {
+    var leftValue = Number(leftParts[i] || 0);
+    var rightValue = Number(rightParts[i] || 0);
+    if (leftValue !== rightValue) return leftValue - rightValue;
   }
 
-  function tryGas() {
-    if (!GAS_URL) { showBlocked(); return; }
-    var cbName = '__sc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    window[cbName] = function(config) {
-      delete window[cbName];
-      if (!fetched) { fetched = true; processConfig(config); }
+  return trimString(left) < trimString(right) ? -1 : trimString(left) > trimString(right) ? 1 : 0;
+}
+
+function parseJsdelivrUrlInfo(url) {
+  var cleaned = trimString(url).replace(/[?#].*$/, '');
+  var match = cleaned.match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^@/]+\/[^@/]+)@([^/]+)\/(.+)$/i);
+
+  if (!match) {
+    return {
+      repo: '',
+      version: '',
+      filePath: '',
+      url: cleaned,
     };
-    var s = document.createElement('script');
-    s.src = GAS_URL + '?action=read&callback=' + cbName;
-    s.onerror = function() { if (!fetched) showBlocked(); };
-    document.head.appendChild(s);
-    setTimeout(function() { if (!fetched && window[cbName]) { delete window[cbName]; showBlocked(); } }, 10000);
   }
 
-  tryJsdelivr();
+  return {
+    repo: trimString(match[1]),
+    version: trimString(match[2]),
+    filePath: trimString(match[3]),
+    url: cleaned,
+  };
+}
+
+function buildJsdelivrVersionUrl(infoOrUrl, version) {
+  var info = typeof infoOrUrl === 'string' ? parseJsdelivrUrlInfo(infoOrUrl) : (infoOrUrl || {});
+  var repo = trimString(info.repo);
+  var filePath = trimString(info.filePath);
+  var normalizedVersion = trimString(version);
+
+  if (!repo || !filePath || !normalizedVersion) return '';
+  return 'https://cdn.jsdelivr.net/gh/' + repo + '@' + normalizedVersion + '/' + filePath;
+}
+
+function getJsdelivrStorage() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+  } catch (error) {}
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage;
+  } catch (error) {}
+  return null;
+}
+
+function getCachedJsdelivrVersion() {
+  var storage = getJsdelivrStorage();
+  if (!storage || !storage.getItem) return '';
+  try {
+    return trimString(storage.getItem('unblockGamesJsdelivrVersion'));
+  } catch (error) {
+    return '';
+  }
+}
+
+function rememberJsdelivrVersion(version) {
+  var storage = getJsdelivrStorage();
+  var normalizedVersion = trimString(version);
+  if (!storage || !storage.setItem || !normalizedVersion) return;
+  try {
+    storage.setItem('unblockGamesJsdelivrVersion', normalizedVersion);
+  } catch (error) {}
+}
+
+function fetchJsdelivrConfig(readUrl) {
+  return fetch(readUrl + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function(config) {
+      var info = parseJsdelivrUrlInfo(readUrl);
+      if (info.version) rememberJsdelivrVersion(info.version);
+      return { ok: true, source: 'jsdelivr', config: config, url: readUrl };
+    });
+}
+
+function resolveJsdelivrReadUrls() {
+  var normalizedUrl = trimString(JSDELIVR_URL);
+  var info = parseJsdelivrUrlInfo(normalizedUrl);
+  var candidates = normalizedUrl ? [normalizedUrl] : [];
+  var exactVersions = [];
+  var cachedVersion = getCachedJsdelivrVersion();
+
+  if (!normalizedUrl) return Promise.resolve([]);
+  if (cachedVersion) exactVersions.push(cachedVersion);
+  if (!window.fetch || !info.repo || !info.filePath) {
+    return Promise.resolve(exactVersions.map(function(version) {
+      return buildJsdelivrVersionUrl(info, version);
+    }).concat(candidates).filter(function(value, index, list) {
+      return value && list.indexOf(value) === index;
+    }));
+  }
+
+  return fetch('https://data.jsdelivr.com/v1/package/gh/' + info.repo + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error('metadata failed');
+      return response.json();
+    })
+    .then(function(payload) {
+      var versions = Array.isArray(payload && payload.versions) ? payload.versions.slice().sort(compareJsdelivrVersions) : [];
+      var latestVersion = versions.length ? trimString(versions[versions.length - 1]) : '';
+      if (latestVersion) exactVersions.push(latestVersion);
+      return exactVersions
+        .filter(function(value, index) {
+          return value && exactVersions.indexOf(value) === index;
+        })
+        .sort(compareJsdelivrVersions)
+        .reverse()
+        .map(function(version) {
+          return buildJsdelivrVersionUrl(info, version);
+        })
+        .concat(candidates)
+        .filter(function(value, index, list) {
+          return value && list.indexOf(value) === index;
+        });
+    })
+    .catch(function() {
+      return exactVersions
+        .filter(function(value, index) {
+          return value && exactVersions.indexOf(value) === index;
+        })
+        .sort(compareJsdelivrVersions)
+        .reverse()
+        .map(function(version) {
+          return buildJsdelivrVersionUrl(info, version);
+        })
+        .concat(candidates)
+        .filter(function(value, index, list) {
+          return value && list.indexOf(value) === index;
+        });
+    });
+}
+
+function readJsdelivrConfigFromUrl(readUrl) {
+  return fetchJsdelivrConfig(readUrl).catch(function() {
+    return { ok: false, source: 'jsdelivr', url: readUrl };
+  });
+}
+
+function readJsdelivrConfig() {
+  if (!JSDELIVR_URL) return Promise.resolve({ ok: false, source: 'jsdelivr' });
+
+  return resolveJsdelivrReadUrls().then(function(readUrls) {
+    var index = 0;
+
+    function tryNext() {
+      if (index >= readUrls.length) return Promise.resolve({ ok: false, source: 'jsdelivr' });
+
+      return readJsdelivrConfigFromUrl(readUrls[index++]).then(function(result) {
+        if (result.ok) return result;
+        return tryNext();
+      });
+    }
+    return tryNext();
+  });
+}
+
+function readGitHubRawConfig() {
+  if (!GITHUB_RAW_URL) return Promise.resolve({ ok: false, source: 'github-raw' });
+
+  return fetch(GITHUB_RAW_URL + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function(config) {
+      return { ok: true, source: 'github-raw', config: config };
+    })
+    .catch(function() {
+      return { ok: false, source: 'github-raw' };
+    });
+}
+
+function readUnpkgConfig() {
+  if (!UNPKG_URL) return Promise.resolve({ ok: false, source: 'unpkg' });
+
+  return fetch(UNPKG_URL + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function(configValue) {
+      return { ok: true, source: 'unpkg', config: configValue };
+    })
+    .catch(function() {
+      return { ok: false, source: 'unpkg' };
+    });
+}
+
+// Multi-provider config fetch: try providers in order, first success wins
+(function() {
+  function withClientIps(callback) {
+    clientIpPromise.then(function() { callback(); }).catch(function() { callback(); });
+  }
+
+  readJsdelivrConfig().then(function(jsdelivrResult) {
+    if (jsdelivrResult.ok) {
+      withClientIps(function() {
+        processConfig(jsdelivrResult.config || {});
+      });
+      return;
+    }
+
+    return readGitHubRawConfig().then(function(rawResult) {
+      if (rawResult.ok) {
+        withClientIps(function() {
+          processConfig(rawResult.config || {});
+        });
+        return;
+      }
+
+      return readUnpkgConfig().then(function(unpkgResult) {
+        withClientIps(function() {
+          if (unpkgResult.ok) {
+            processConfig(unpkgResult.config || {});
+          } else {
+            showBlocked();
+          }
+        });
+      });
+    });
+  });
 })();
 
 if (!SHOW_OPEN_IN_NEW_TAB_BANNER) {

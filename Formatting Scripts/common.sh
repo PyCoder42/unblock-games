@@ -63,7 +63,7 @@ to_bool() {
 }
 
 # Normalize a variant kind string.
-# Valid outputs: base | open-in-new-tab | locked | locked-b64
+# Valid outputs: base | open-in-new-tab | locked | locked-b64 | secure
 # Returns empty string for invalid input.
 normalize_variant_kind() {
   local raw
@@ -198,7 +198,7 @@ variant_stem_from_raw() {
 }
 
 # Detect the variant kind from a file stem.
-# Returns: regular | open-in-new-tab | locked | locked-b64 | plain
+# Returns: regular | open-in-new-tab | locked | locked-b64 | secure | plain
 variant_kind_from_stem() {
   local stem="$1"
   local lower="${(L)stem}"

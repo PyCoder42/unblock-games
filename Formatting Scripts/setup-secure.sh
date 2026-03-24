@@ -2,16 +2,16 @@
 #
 # setup-secure.sh
 # One-time setup for secure variant remote config.
-# Configures dual-source (jsdelivr + Google Apps Script) and generates admin panel.
+# Configures multi-provider (jsdelivr + GitHub raw + unpkg) and generates admin panel.
 #
 # Usage:
-#   ./Formatting\ Scripts/setup-secure.sh
+#   ./Formatting\ Scripts/setup-secure.sh                              # Full interactive setup
+#   ./Formatting\ Scripts/setup-secure.sh --regenerate                 # Regenerate admin panel from template
+#   ./Formatting\ Scripts/setup-secure.sh --fake "Label" [github-pat]  # Create a fake admin panel
 #
 # Prerequisites:
 #   1. A public GitHub repo with an empty config.json ({})
 #   2. A GitHub PAT (Fine-grained, scoped to that repo, Contents read+write)
-#   3. A Google Apps Script deployed as web app (paste gas-server.js)
-#   4. GAS secret key set in Script Properties
 
 set -euo pipefail
 
@@ -19,7 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="${SCRIPT_DIR:h}"
 SECURE_CONFIG="$ROOT_DIR/.secure-config"
 ADMIN_TEMPLATE="$SCRIPT_DIR/admin-panel-template.html"
-ADMIN_OUTPUT="$ROOT_DIR/admin-panel.html"
+ADMIN_OUTPUT="$ROOT_DIR/Admin Panel/admin-panel.html"
+ADMIN_DIR="$ROOT_DIR/Admin Panel"
 
 # ── Colors ──────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -33,7 +34,135 @@ warn() { printf "${YELLOW}⚠${NC} %s\n" "$*"; }
 err()  { printf "${RED}✗${NC} %s\n" "$*" >&2; }
 ask()  { printf "${CYAN}?${NC} %s " "$1"; }
 
-# ── Collect configuration ───────────────────────────────────────
+read_existing() {
+  local key="$1"
+  if [[ -f "$SECURE_CONFIG" ]]; then
+    perl -ne "if (/^\\Q${key}\\E=(.+)/) { print \$1; exit }" "$SECURE_CONFIG"
+  fi
+}
+
+generate_admin_panel() {
+  local panel_mode="$1"
+  local github_pat="$2"
+  local output_file="$3"
+
+  local jsdelivr_url="$(read_existing "JSDELIVR_URL")"
+  local github_repo="$(read_existing "GITHUB_REPO")"
+  local github_raw_url="$(read_existing "GITHUB_RAW_URL")"
+  local unpkg_url="$(read_existing "UNPKG_URL")"
+
+  if [[ -z "$github_raw_url" && -n "$github_repo" ]]; then
+    github_raw_url="https://raw.githubusercontent.com/${github_repo}/main/config.json"
+  fi
+
+  if [[ -z "$unpkg_url" ]]; then
+    unpkg_url="https://unpkg.com/@pycoder42/ug-config@latest/config.json"
+  fi
+
+  if [[ ! -f "$ADMIN_TEMPLATE" ]]; then
+    err "Admin panel template not found at: $ADMIN_TEMPLATE"
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$output_file")"
+
+  sed \
+    -e "s|{{JSDELIVR_URL}}|$jsdelivr_url|g" \
+    -e "s|{{GITHUB_RAW_URL}}|$github_raw_url|g" \
+    -e "s|{{UNPKG_URL}}|$unpkg_url|g" \
+    -e "s|{{GITHUB_REPO}}|$github_repo|g" \
+    -e "s|{{GITHUB_PAT}}|$github_pat|g" \
+    -e "s|{{PANEL_MODE}}|$panel_mode|g" \
+    "$ADMIN_TEMPLATE" > "$output_file"
+}
+
+# DJB2 hash → base36, first 6 chars (must match keyIdentifier in gas-server.js)
+key_identifier() {
+  perl -e '
+    my $key = $ARGV[0];
+    my $hash = 5381;
+    for my $ch (split //, $key) {
+      $hash = (($hash << 5) + $hash + ord($ch)) & 0x7fffffff;
+    }
+    my $result = "";
+    my @chars = split //, "0123456789abcdefghijklmnopqrstuvwxyz";
+    my $tmp = $hash;
+    while ($tmp > 0) {
+      $result = $chars[$tmp % 36] . $result;
+      $tmp = int($tmp / 36);
+    }
+    print substr($result, 0, 6);
+  ' "$1"
+}
+
+# ── Handle --regenerate ────────────────────────────────────────
+if [[ "${1:-}" == "--regenerate" ]]; then
+  printf "\n${CYAN}═══ Regenerating Admin Panel ═══${NC}\n\n"
+
+  if [[ ! -f "$SECURE_CONFIG" ]]; then
+    err ".secure-config not found. Run full setup first."
+    exit 1
+  fi
+
+  generate_admin_panel \
+    "real" \
+    "$(read_existing "GITHUB_PAT")" \
+    "$ADMIN_OUTPUT"
+
+  log "Regenerated: $ADMIN_OUTPUT"
+  exit 0
+fi
+
+# ── Handle --fake ──────────────────────────────────────────────
+if [[ "${1:-}" == "--fake" ]]; then
+  FAKE_LABEL="${2:-}"
+  FAKE_PAT="${3:-}"
+
+  if [[ -z "$FAKE_LABEL" ]]; then
+    err "Usage: $0 --fake \"Label\" [github-pat]"
+    err "  If no PAT provided, you'll be prompted for one."
+    exit 1
+  fi
+
+  printf "\n${CYAN}═══ Creating Fake Admin Panel ═══${NC}\n\n"
+
+  if [[ ! -f "$SECURE_CONFIG" ]]; then
+    err ".secure-config not found. Run full setup first."
+    exit 1
+  fi
+
+  if [[ -z "$FAKE_PAT" ]]; then
+    ask "GitHub PAT for this fake panel (create a fine-grained token at github.com/settings/tokens):"
+    read -r FAKE_PAT
+  fi
+
+  if [[ -z "$FAKE_PAT" ]]; then
+    err "A GitHub PAT is required for fake panels."
+    exit 1
+  fi
+
+  # Generate identifier from label
+  FAKE_ID="$(key_identifier "$FAKE_LABEL")"
+
+  # Generate fake admin panel
+  FAKE_OUTPUT="$ADMIN_DIR/admin-panel-$FAKE_ID.html"
+
+  generate_admin_panel "fake" "$FAKE_PAT" "$FAKE_OUTPUT"
+
+  log "Generated: $FAKE_OUTPUT"
+
+  printf "\n${GREEN}═══ Fake Admin Panel Created ═══${NC}\n\n"
+  printf "  File:       $FAKE_OUTPUT\n"
+  printf "  Identifier: $FAKE_ID\n"
+  printf "  Label:      $FAKE_LABEL\n"
+  printf "\n"
+  printf "  The fake panel uses its own GitHub PAT.\n"
+  printf "  To revoke access: delete the PAT at github.com/settings/tokens\n"
+  printf "\n"
+  exit 0
+fi
+
+# ── Collect configuration (full interactive setup) ─────────────
 
 printf "\n${CYAN}═══ Unblock Games Secure Variant Setup ═══${NC}\n\n"
 
@@ -42,13 +171,6 @@ if [[ -f "$SECURE_CONFIG" ]]; then
   warn "Existing .secure-config found. Values will be used as defaults."
   printf "\n"
 fi
-
-read_existing() {
-  local key="$1"
-  if [[ -f "$SECURE_CONFIG" ]]; then
-    perl -ne "if (/^\\Q${key}\\E=(.+)/) { print \$1; exit }" "$SECURE_CONFIG"
-  fi
-}
 
 # GitHub repo
 DEFAULT_REPO="$(read_existing "GITHUB_REPO")"
@@ -70,33 +192,17 @@ if [[ -z "$GITHUB_PAT" ]]; then
   exit 1
 fi
 
-# GAS URL
-DEFAULT_GAS="$(read_existing "GAS_URL")"
-ask "Google Apps Script deployment URL${DEFAULT_GAS:+ [$DEFAULT_GAS]}:"
-read -r GAS_URL
-GAS_URL="${GAS_URL:-$DEFAULT_GAS}"
-if [[ -z "$GAS_URL" ]]; then
-  err "GAS URL is required."
-  exit 1
-fi
-
-# GAS secret key
-DEFAULT_SECRET="$(read_existing "GAS_SECRET")"
-ask "GAS secret key (passphrase)${DEFAULT_SECRET:+ [****${DEFAULT_SECRET: -4}]}:"
-read -r GAS_SECRET
-GAS_SECRET="${GAS_SECRET:-$DEFAULT_SECRET}"
-if [[ -z "$GAS_SECRET" ]]; then
-  err "GAS secret key is required."
-  exit 1
-fi
-
-# Derive jsdelivr URL
-JSDELIVR_URL="https://cdn.jsdelivr.net/gh/${GITHUB_REPO}@main/config.json"
+# Derive URLs
+JSDELIVR_URL="https://cdn.jsdelivr.net/gh/${GITHUB_REPO}@latest/config.json"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/config.json"
+DEFAULT_UNPKG_URL="$(read_existing "UNPKG_URL")"
+UNPKG_URL="${DEFAULT_UNPKG_URL:-https://unpkg.com/@pycoder42/ug-config@latest/config.json}"
 
 printf "\n"
-log "jsdelivr URL: $JSDELIVR_URL"
-log "GAS URL:      $GAS_URL"
-log "GitHub repo:  $GITHUB_REPO"
+log "jsdelivr URL:   $JSDELIVR_URL"
+log "GitHub raw URL: $GITHUB_RAW_URL"
+log "unpkg URL:      $UNPKG_URL"
+log "GitHub repo:    $GITHUB_REPO"
 
 # ── Test connections ────────────────────────────────────────────
 
@@ -118,19 +224,6 @@ else
   [[ "${cont:-n}" == [yY]* ]] || exit 1
 fi
 
-# Test GAS endpoint
-printf "  Testing GAS endpoint... "
-GAS_RESP="$(curl -sf -L "$GAS_URL?action=read&callback=test" 2>/dev/null || true)"
-if [[ -n "$GAS_RESP" && "$GAS_RESP" == test\(* ]]; then
-  printf "${GREEN}OK${NC}\n"
-else
-  printf "${YELLOW}No valid JSONP response${NC}\n"
-  warn "GAS returned: ${GAS_RESP:0:80}"
-  ask "Continue anyway? (y/N):"
-  read -r cont
-  [[ "${cont:-n}" == [yY]* ]] || exit 1
-fi
-
 # ── Scan game folders ───────────────────────────────────────────
 
 printf "\n${CYAN}Scanning game folders...${NC}\n"
@@ -142,6 +235,7 @@ while IFS= read -r -d '' d; do
   dir_name="${d:t}"
   [[ "$dir_name" == .* ]] && continue
   [[ "$dir_name" == "Formatting Scripts" ]] && continue
+  [[ "$dir_name" == "Admin Panel" ]] && continue
   [[ "$dir_name" == "Pokemon Showdown" ]] && continue
   [[ "$dir_name" == "test-lock-converter" ]] && continue
 
@@ -175,7 +269,7 @@ log "Found ${#GAME_IDS[@]} games: ${GAME_IDS[*]}"
 # ── Initialize config in both sources ───────────────────────────
 
 DEFAULT_PASSWORD="supercoolpassword"
-CONFIG_JSON="{\"password\":\"$DEFAULT_PASSWORD\",\"blocked\":{},\"games\":$GAMES_JSON}"
+CONFIG_JSON="{\"password\":\"$DEFAULT_PASSWORD\",\"passwords\":[\"$DEFAULT_PASSWORD\"],\"blocked\":{},\"games\":$GAMES_JSON,\"allowedIps\":{}}"
 
 printf "\n${CYAN}Initializing remote config...${NC}\n"
 
@@ -216,22 +310,8 @@ fi
 
 # Purge jsdelivr cache
 printf "  Purging jsdelivr cache... "
-curl -sf "https://purge.jsdelivr.net/gh/$GITHUB_REPO@main/config.json" > /dev/null 2>&1 || true
+curl -sf "https://purge.jsdelivr.net/gh/$GITHUB_REPO@latest/config.json" > /dev/null 2>&1 || true
 printf "${GREEN}OK${NC}\n"
-
-# Initialize GAS config
-printf "  Writing to GAS... "
-ENCODED_CONFIG="$(printf '%s' "$CONFIG_JSON" | perl -MURI::Escape -ne 'print uri_escape($_)')"
-GAS_WRITE_RESP="$(curl -sf -L \
-  "$GAS_URL?action=write&key=$GAS_SECRET&writeAction=fullSync&config=$ENCODED_CONFIG&callback=test" \
-  2>/dev/null || true)"
-
-if [[ "$GAS_WRITE_RESP" == *'"success"'* ]]; then
-  printf "${GREEN}OK${NC}\n"
-else
-  printf "${YELLOW}Unexpected response${NC}\n"
-  warn "GAS write returned: ${GAS_WRITE_RESP:0:80}"
-fi
 
 # ── Write .secure-config ────────────────────────────────────────
 
@@ -239,10 +319,10 @@ printf "\n${CYAN}Writing .secure-config...${NC}\n"
 
 cat > "$SECURE_CONFIG" <<EOF
 JSDELIVR_URL=$JSDELIVR_URL
-GAS_URL=$GAS_URL
 GITHUB_REPO=$GITHUB_REPO
 GITHUB_PAT=$GITHUB_PAT
-GAS_SECRET=$GAS_SECRET
+GITHUB_RAW_URL=$GITHUB_RAW_URL
+UNPKG_URL=$UNPKG_URL
 EOF
 
 log "Saved to $SECURE_CONFIG"
@@ -251,31 +331,22 @@ log "Saved to $SECURE_CONFIG"
 
 printf "\n${CYAN}Generating admin panel...${NC}\n"
 
-if [[ ! -f "$ADMIN_TEMPLATE" ]]; then
-  warn "Admin panel template not found at: $ADMIN_TEMPLATE"
-  warn "Run this again after creating the template."
-else
-  sed \
-    -e "s|{{JSDELIVR_URL}}|$JSDELIVR_URL|g" \
-    -e "s|{{GAS_URL}}|$GAS_URL|g" \
-    -e "s|{{GITHUB_REPO}}|$GITHUB_REPO|g" \
-    -e "s|{{GITHUB_PAT}}|$GITHUB_PAT|g" \
-    -e "s|{{GAS_SECRET}}|$GAS_SECRET|g" \
-    "$ADMIN_TEMPLATE" > "$ADMIN_OUTPUT"
-  log "Generated: $ADMIN_OUTPUT"
-fi
+generate_admin_panel "real" "$GITHUB_PAT" "$ADMIN_OUTPUT"
+log "Generated: $ADMIN_OUTPUT"
 
 # ── Summary ─────────────────────────────────────────────────────
 
 printf "\n${GREEN}═══ Setup Complete ═══${NC}\n\n"
 printf "  Config repo:    https://github.com/$GITHUB_REPO\n"
 printf "  jsdelivr URL:   $JSDELIVR_URL\n"
-printf "  GAS URL:        $GAS_URL\n"
+printf "  GitHub raw URL: $GITHUB_RAW_URL\n"
+printf "  unpkg URL:      $UNPKG_URL\n"
 printf "  Games:          ${GAME_IDS[*]}\n"
 printf "  Password:       $DEFAULT_PASSWORD\n"
 printf "  Admin panel:    $ADMIN_OUTPUT\n"
 printf "\n"
 printf "Next steps:\n"
 printf "  1. Generate secure files:  ./Formatting Scripts/sync-protocol-versions.sh --keep base,locked-b64,secure --force\n"
-printf "  2. Open admin-panel.html to manage games remotely\n"
+printf "  2. Sync remote config:     node \"Formatting Scripts/sync-remote-config.mjs\"\n"
+printf "  3. Open admin-panel.html to manage games remotely\n"
 printf "\n"

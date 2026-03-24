@@ -13,9 +13,8 @@
     min-height: 100vh;
     padding: 16px;
   }
-  .container { max-width: 500px; margin: 0 auto; }
+  .container { max-width: 520px; margin: 0 auto; }
 
-  /* Header */
   .header {
     text-align: center;
     padding: 20px 0;
@@ -37,7 +36,6 @@
   .status.partial { background: #5c4000; color: #ffc107; }
   .status.error { background: #4a1010; color: #e94560; }
 
-  /* Sections */
   .section {
     background: #16213e;
     border-radius: 12px;
@@ -49,8 +47,19 @@
     color: #8f94fb;
     margin-bottom: 12px;
   }
+  .section-note {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #a8accf;
+    margin-bottom: 12px;
+  }
+  .section-note code {
+    background: rgba(15, 52, 96, 0.9);
+    border-radius: 6px;
+    padding: 1px 5px;
+    color: #fff;
+  }
 
-  /* Inputs */
   input[type="text"], input[type="password"], input[type="datetime-local"] {
     padding: 10px 14px;
     font-size: 16px;
@@ -67,7 +76,6 @@
     color-scheme: dark;
   }
 
-  /* Buttons */
   .btn {
     padding: 10px 20px;
     font-size: 14px;
@@ -98,7 +106,6 @@
   }
   .btn-icon:hover { opacity: 0.85; }
 
-  /* Password section */
   .pw-row {
     display: flex;
     gap: 8px;
@@ -111,19 +118,49 @@
     margin-top: 8px;
   }
 
-  /* Game list */
-  .game-row {
+  .list-empty {
+    font-size: 13px;
+    color: #999;
+    padding: 8px 0;
+  }
+
+  .game-row,
+  .ip-row {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 0;
     border-bottom: 1px solid #2a2a4a;
   }
-  .game-row:last-child { border-bottom: none; }
-  .game-name {
+  .game-row:last-child,
+  .ip-row:last-child { border-bottom: none; }
+  .game-name,
+  .ip-main {
     flex: 1;
+    min-width: 0;
     font-size: 15px;
     font-weight: 500;
+  }
+  .ip-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ip-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: #fff;
+  }
+  .ip-address {
+    font-size: 13px;
+    color: #a8accf;
+    word-break: break-all;
+  }
+  .row-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
   }
   .badge {
     font-size: 12px;
@@ -134,12 +171,13 @@
   .badge-active { background: #1b4332; color: #52b788; }
   .badge-blocked { background: #4a1010; color: #e94560; }
   .badge-timed { background: #5c4000; color: #ffc107; }
+  .badge-ip { background: #0e3a57; color: #8fd3ff; }
 
   .block-btn { background: #4a1010; color: #e94560; }
   .unblock-btn { background: #1b4332; color: #52b788; }
   .time-btn { background: #5c4000; color: #ffc107; }
+  .remove-btn { background: #4a1010; color: #ff7b90; }
 
-  /* Time picker overlay */
   .time-picker {
     display: none;
     background: #0f3460;
@@ -156,17 +194,16 @@
   }
   .time-picker-row input { flex: 1; }
 
-  /* Add game */
-  .add-row {
+  .add-row,
+  .ip-add-row {
     display: flex;
     gap: 8px;
   }
   .add-row input { flex: 1; }
+  .ip-add-row input { flex: 1; }
 
-  /* Loading */
   .loading { text-align: center; color: #8f94fb; padding: 40px 0; }
 
-  /* Toast */
   .toast {
     position: fixed;
     bottom: 20px;
@@ -184,6 +221,8 @@
   .toast.show { opacity: 1; }
   .toast.success { background: #1b4332; color: #52b788; }
   .toast.error { background: #4a1010; color: #e94560; }
+
+
 </style>
 </head>
 <body>
@@ -196,7 +235,6 @@
   <div id="loadingState" class="loading">Loading config...</div>
 
   <div id="mainContent" style="display:none;">
-    <!-- Password Section -->
     <div class="section">
       <h2>Password</h2>
       <div class="pw-row">
@@ -206,22 +244,41 @@
       <p class="pw-current">Current: <span id="currentPw">—</span></p>
     </div>
 
-    <!-- Games Section -->
     <div class="section">
       <h2>Games</h2>
       <div id="gamesList"></div>
     </div>
 
-    <!-- Add Game Section -->
     <div class="section">
       <h2>Add Game</h2>
+      <p class="section-note">
+        Enter the exact game ID (the lowercase-hyphenated name, e.g. <code>drive-mad</code>).
+      </p>
       <div class="add-row">
-        <input type="text" id="addGameInput" placeholder="game-id (e.g., drive-mad)">
+        <input type="text" id="addGameInput" placeholder="Game ID (e.g. drive-mad)">
         <button class="btn btn-primary" onclick="addGame()">Add</button>
       </div>
     </div>
 
-    <!-- Refresh -->
+    <div class="section">
+      <h2>Allowed IP Addresses</h2>
+      <p class="section-note">
+        Allowed IPs bypass the fake block screen. Use the IP shown on a blocked game page, then add an optional label so
+        you know who the device belongs to.
+      </p>
+      <div id="allowedIpsList"></div>
+      <div class="ip-add-row" style="margin-top:12px;">
+        <input type="text" id="allowedIpInput" placeholder="IP address">
+        <input type="text" id="allowedIpLabelInput" placeholder="Label (optional)">
+        <button class="btn btn-primary" onclick="addAllowedIp()">Add</button>
+      </div>
+    </div>
+
+    <div id="adminKeysSection" class="section" style="display:none;">
+      <h2>Admin Panel Keys</h2>
+      <p class="section-note">Fake panels are managed via GitHub Personal Access Tokens. Create or revoke tokens at github.com/settings/tokens.</p>
+    </div>
+
     <div style="text-align:center;padding:12px 0;">
       <button class="btn btn-primary" onclick="loadConfig()" style="width:100%;">Refresh</button>
     </div>
@@ -233,18 +290,199 @@
 <script>
 // ═══ Config (replaced by setup-secure.sh) ═══
 var JSDELIVR_URL = '{{JSDELIVR_URL}}';
-var GAS_URL = '{{GAS_URL}}';
+var GITHUB_RAW_URL = '{{GITHUB_RAW_URL}}';
+var UNPKG_URL = '{{UNPKG_URL}}';
 var GITHUB_REPO = '{{GITHUB_REPO}}';
 var GITHUB_PAT = '{{GITHUB_PAT}}';
-var GAS_SECRET = '{{GAS_SECRET}}';
+var PANEL_MODE = '{{PANEL_MODE}}';
 
 var config = {};
-var currentSha = '';
+var lastReadSource = '';
 
 // ═══ Utilities ═══
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function trimString(value) {
+  return String(value == null ? '' : value).replace(/^\s+|\s+$/g, '');
+}
+
+function isPlaceholderIp(value) {
+  var normalized = trimString(value).toLowerCase();
+  return normalized === '0.0.0.0' ||
+    normalized === '::' ||
+    normalized === '0:0:0:0:0:0:0:0' ||
+    normalized === '::ffff:0.0.0.0';
+}
+
+function isLoopbackIp(value) {
+  var normalized = trimString(value).toLowerCase();
+  return /^127\./.test(normalized) ||
+    normalized === '::1' ||
+    normalized === '0:0:0:0:0:0:0:1' ||
+    normalized === 'localhost';
+}
+
+function isValidIpv4(value) {
+  var normalized = trimString(value);
+  if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(normalized)) return false;
+
+  return normalized.split('.').every(function(part) {
+    var numeric = Number(part);
+    return numeric >= 0 && numeric <= 255;
+  });
+}
+
+function isLikelyIpv6(value) {
+  var normalized = trimString(value).toLowerCase();
+  var parts;
+  var nonEmpty = 0;
+  var i;
+
+  if (normalized.indexOf(':') === -1) return false;
+  if (!/^[0-9a-f:]+$/.test(normalized)) return false;
+  if (normalized.indexOf(':::') !== -1) return false;
+
+  parts = normalized.split(':');
+  for (i = 0; i < parts.length; i++) {
+    if (!parts[i]) continue;
+    if (parts[i].length > 4) return false;
+    nonEmpty++;
+  }
+
+  if (normalized.indexOf('::') === -1) {
+    return parts.length === 8 && nonEmpty === 8;
+  }
+  return parts.length <= 8 && nonEmpty > 0;
+}
+
+function isUsableAllowedIp(value) {
+  var normalized = trimString(value);
+  if (!normalized) return false;
+  if (isPlaceholderIp(normalized) || isLoopbackIp(normalized)) return false;
+  return isValidIpv4(normalized) || isLikelyIpv6(normalized);
+}
+
+function normalizeGameIdInput(value) {
+  var normalized = trimString(value).toLowerCase();
+  if (!normalized) return '';
+
+  normalized = normalized.replace(/\.html$/i, '');
+  normalized = normalized.replace(/eaglrcraft/g, 'eaglercraft');
+  normalized = normalized.replace(/open[-\s]*in[-\s]*new[-\s]*tab/g, ' ');
+  normalized = normalized.replace(/locked[-\s]*b64/g, ' ');
+  normalized = normalized.replace(/\b(secure|regular|locked)\b/g, ' ');
+  normalized = normalized.replace(/[._]+/g, ' ');
+  normalized = normalized.replace(/[^a-z0-9]+/g, '-');
+  normalized = normalized.replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+  return normalized;
+}
+
+function normalizeAllowedIps(rawAllowedIps) {
+  var output = {};
+  var i;
+
+  function addIpValue(ipValue, labelValue) {
+    String(ipValue == null ? '' : ipValue).split(',').forEach(function(candidate) {
+      var normalizedIp = trimString(candidate);
+      if (!isUsableAllowedIp(normalizedIp)) return;
+      output[normalizedIp] = { label: trimString(labelValue) };
+    });
+  }
+
+  if (!rawAllowedIps) return output;
+
+  if (Array.isArray(rawAllowedIps)) {
+    for (i = 0; i < rawAllowedIps.length; i++) {
+      var entry = rawAllowedIps[i];
+      if (typeof entry === 'string') {
+        entry = { ip: entry, label: '' };
+      }
+      if (entry && entry.ip) {
+        addIpValue(entry.ip, entry.label);
+      }
+    }
+  } else {
+    var keys = Object.keys(rawAllowedIps);
+    for (i = 0; i < keys.length; i++) {
+      var key = trimString(keys[i]);
+      if (!key) continue;
+      var item = rawAllowedIps[keys[i]];
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        addIpValue(key, item.label);
+      } else {
+        addIpValue(key, item);
+      }
+    }
+  }
+
+  return output;
+}
+
+function normalizePasswordList(rawConfig) {
+  var source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  var output = [];
+
+  function addPassword(value) {
+    var normalized = trimString(value);
+    if (!normalized || output.indexOf(normalized) !== -1) return;
+    output.push(normalized);
+  }
+
+  addPassword(source.password);
+  if (Array.isArray(source.passwords)) {
+    source.passwords.forEach(addPassword);
+  }
+
+  return output;
+}
+
+function normalizeConfig(rawConfig) {
+  var source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  var blocked = source.blocked && typeof source.blocked === 'object' ? source.blocked : {};
+  var normalizedGames = {};
+  var normalizedBlocked = {};
+  var i;
+  var passwords = normalizePasswordList(source);
+
+  var games = Array.isArray(source.games) ? source.games : [];
+  for (i = 0; i < games.length; i++) {
+    var normalizedGame = normalizeGameIdInput(games[i]);
+    if (normalizedGame) normalizedGames[normalizedGame] = true;
+  }
+
+  var blockedKeys = Object.keys(blocked);
+  for (i = 0; i < blockedKeys.length; i++) {
+    var blockedId = normalizeGameIdInput(blockedKeys[i]);
+    if (!blockedId) continue;
+    normalizedGames[blockedId] = true;
+    if (blocked[blockedKeys[i]] === true) {
+      normalizedBlocked[blockedId] = true;
+    } else if (typeof blocked[blockedKeys[i]] === 'string' && trimString(blocked[blockedKeys[i]])) {
+      normalizedBlocked[blockedId] = trimString(blocked[blockedKeys[i]]);
+    }
+  }
+
+  return {
+    password: passwords[0] || '',
+    passwords: passwords,
+    blocked: normalizedBlocked,
+    games: Object.keys(normalizedGames).sort(),
+    allowedIps: normalizeAllowedIps(source.allowedIps || source.allowedIPs || source.allowedIpAddresses),
+  };
+}
+
 function formatName(id) {
-  return id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  return normalizeGameIdInput(id)
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, function(c) { return c.toUpperCase(); });
 }
 
 function showToast(msg, type) {
@@ -260,94 +498,375 @@ function setStatus(text, cls) {
   b.className = 'status ' + cls;
 }
 
-// ═══ Config Loading (dual-source) ═══
-
-function loadConfig() {
-  fetch(JSDELIVR_URL + '?t=' + Date.now())
-    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(c) { config = c; onConfigLoaded('jsdelivr'); })
-    .catch(function() {
-      // Fallback to GAS
-      var cbName = '__adm_' + Date.now();
-      window[cbName] = function(c) {
-        delete window[cbName];
-        config = c;
-        onConfigLoaded('gas-fallback');
-      };
-      var s = document.createElement('script');
-      s.src = GAS_URL + '?action=read&callback=' + cbName;
-      s.onerror = function() { setStatus('Both sources failed', 'error'); };
-      document.head.appendChild(s);
-    });
-
-  // Also get the current SHA from GitHub for writes
-  fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/config.json', {
-    headers: { 'Authorization': 'token ' + GITHUB_PAT }
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(d) { if (d.sha) currentSha = d.sha; })
-    .catch(function() {});
-}
-
-function onConfigLoaded(source) {
+function applyLoadedConfig(rawConfig, source) {
+  config = normalizeConfig(rawConfig);
+  lastReadSource = source;
   document.getElementById('loadingState').style.display = 'none';
   document.getElementById('mainContent').style.display = '';
   setStatus('Connected (' + source + ')', 'ok');
   renderConfig();
 }
 
+// ═══ Config Loading (jsdelivr + GitHub raw + unpkg fallback) ═══
+
+function configsMatch(leftConfig, rightConfig) {
+  return JSON.stringify(normalizeConfig(leftConfig)) === JSON.stringify(normalizeConfig(rightConfig));
+}
+
+function compareJsdelivrVersions(left, right) {
+  var leftParts = trimString(left).split('.');
+  var rightParts = trimString(right).split('.');
+  var length = Math.max(leftParts.length, rightParts.length);
+  var i;
+
+  for (i = 0; i < length; i++) {
+    var leftValue = Number(leftParts[i] || 0);
+    var rightValue = Number(rightParts[i] || 0);
+    if (leftValue !== rightValue) return leftValue - rightValue;
+  }
+
+  return trimString(left) < trimString(right) ? -1 : trimString(left) > trimString(right) ? 1 : 0;
+}
+
+function parseJsdelivrUrlInfo(url) {
+  var cleaned = trimString(url).replace(/[?#].*$/, '');
+  var match = cleaned.match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^@/]+\/[^@/]+)@([^/]+)\/(.+)$/i);
+
+  if (!match) {
+    return {
+      repo: GITHUB_REPO || '',
+      version: '',
+      filePath: '',
+      url: cleaned,
+    };
+  }
+
+  return {
+    repo: trimString(match[1]),
+    version: trimString(match[2]),
+    filePath: trimString(match[3]),
+    url: cleaned,
+  };
+}
+
+function buildJsdelivrVersionUrl(infoOrUrl, version) {
+  var info = typeof infoOrUrl === 'string' ? parseJsdelivrUrlInfo(infoOrUrl) : (infoOrUrl || {});
+  var repo = trimString(info.repo);
+  var filePath = trimString(info.filePath);
+  var normalizedVersion = trimString(version);
+
+  if (!repo || !filePath || !normalizedVersion) return '';
+  return 'https://cdn.jsdelivr.net/gh/' + repo + '@' + normalizedVersion + '/' + filePath;
+}
+
+function getJsdelivrStorage() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+  } catch (error) {}
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage;
+  } catch (error) {}
+  return null;
+}
+
+function getCachedJsdelivrVersion() {
+  var storage = getJsdelivrStorage();
+  if (!storage || !storage.getItem) return '';
+  try {
+    return trimString(storage.getItem('unblockGamesJsdelivrVersion'));
+  } catch (error) {
+    return '';
+  }
+}
+
+function rememberJsdelivrVersion(version) {
+  var storage = getJsdelivrStorage();
+  var normalizedVersion = trimString(version);
+  if (!storage || !storage.setItem || !normalizedVersion) return;
+  try {
+    storage.setItem('unblockGamesJsdelivrVersion', normalizedVersion);
+  } catch (error) {}
+}
+
+function clearCachedJsdelivrVersion() {
+  var storage = getJsdelivrStorage();
+  if (!storage || !storage.removeItem) return;
+  try {
+    storage.removeItem('unblockGamesJsdelivrVersion');
+  } catch (error) {}
+}
+
+function fetchJsdelivrConfig(readUrl) {
+  return fetch(readUrl + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function(configValue) {
+      var info = parseJsdelivrUrlInfo(readUrl);
+      if (info.version) rememberJsdelivrVersion(info.version);
+      return { ok: true, source: 'jsdelivr', config: configValue, url: readUrl };
+    });
+}
+
+function resolveJsdelivrReadUrls() {
+  var normalizedUrl = trimString(JSDELIVR_URL);
+  var info = parseJsdelivrUrlInfo(normalizedUrl);
+  var candidates = normalizedUrl ? [normalizedUrl] : [];
+  var exactVersions = [];
+  var cachedVersion = getCachedJsdelivrVersion();
+
+  if (!normalizedUrl) return Promise.resolve([]);
+  if (cachedVersion) exactVersions.push(cachedVersion);
+  if (!window.fetch || !info.repo || !info.filePath) {
+    return Promise.resolve(exactVersions.map(function(version) {
+      return buildJsdelivrVersionUrl(info, version);
+    }).concat(candidates).filter(function(value, index, list) {
+      return value && list.indexOf(value) === index;
+    }));
+  }
+
+  return fetch('https://data.jsdelivr.com/v1/package/gh/' + info.repo + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error('metadata failed');
+      return response.json();
+    })
+    .then(function(payload) {
+      var versions = Array.isArray(payload && payload.versions) ? payload.versions.slice().sort(compareJsdelivrVersions) : [];
+      var latestVersion = versions.length ? trimString(versions[versions.length - 1]) : '';
+      if (latestVersion) exactVersions.push(latestVersion);
+      return exactVersions
+        .filter(function(value, index) {
+          return value && exactVersions.indexOf(value) === index;
+        })
+        .sort(compareJsdelivrVersions)
+        .reverse()
+        .map(function(version) {
+          return buildJsdelivrVersionUrl(info, version);
+        })
+        .concat(candidates)
+        .filter(function(value, index, list) {
+          return value && list.indexOf(value) === index;
+        });
+    })
+    .catch(function() {
+      return exactVersions
+        .filter(function(value, index) {
+          return value && exactVersions.indexOf(value) === index;
+        })
+        .sort(compareJsdelivrVersions)
+        .reverse()
+        .map(function(version) {
+          return buildJsdelivrVersionUrl(info, version);
+        })
+        .concat(candidates)
+        .filter(function(value, index, list) {
+          return value && list.indexOf(value) === index;
+        });
+    });
+}
+
+function readJsdelivrConfigFromUrl(readUrl) {
+  return fetchJsdelivrConfig(readUrl).catch(function() {
+    return { ok: false, source: 'jsdelivr', url: readUrl };
+  });
+}
+
+function readJsdelivrConfig() {
+  if (!JSDELIVR_URL) return Promise.resolve({ ok: false, source: 'jsdelivr' });
+
+  return resolveJsdelivrReadUrls().then(function(readUrls) {
+    var index = 0;
+
+    function tryNext() {
+      if (index >= readUrls.length) return Promise.resolve({ ok: false, source: 'jsdelivr' });
+
+      return readJsdelivrConfigFromUrl(readUrls[index++]).then(function(result) {
+        if (result.ok) return result;
+        return tryNext();
+      });
+    }
+    return tryNext();
+  });
+}
+
+function readGitHubRawConfig() {
+  if (!GITHUB_RAW_URL) return Promise.resolve({ ok: false, source: 'github-raw' });
+
+  return fetch(GITHUB_RAW_URL + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function(configValue) {
+      return { ok: true, source: 'github-raw', config: configValue };
+    })
+    .catch(function() {
+      return { ok: false, source: 'github-raw' };
+    });
+}
+
+function readUnpkgConfig() {
+  if (!UNPKG_URL) return Promise.resolve({ ok: false, source: 'unpkg' });
+
+  return fetch(UNPKG_URL + '?t=' + Date.now(), {
+    headers: { Accept: 'application/json' },
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error(response.status);
+      return response.json();
+    })
+    .then(function(configValue) {
+      return { ok: true, source: 'unpkg', config: configValue };
+    })
+    .catch(function() {
+      return { ok: false, source: 'unpkg' };
+    });
+}
+
+function loadConfig() {
+  setStatus('Connecting...', 'ok');
+
+  return readJsdelivrConfig().then(function(jsdelivrResult) {
+    if (jsdelivrResult.ok) {
+      lastReadSource = 'jsdelivr';
+      applyLoadedConfig(jsdelivrResult.config, 'jsdelivr');
+      return;
+    }
+
+    return readGitHubRawConfig().then(function(rawResult) {
+      if (rawResult.ok) {
+        lastReadSource = 'github-raw';
+        applyLoadedConfig(rawResult.config, 'GitHub raw');
+        return;
+      }
+
+      return readUnpkgConfig().then(function(unpkgResult) {
+        if (unpkgResult.ok) {
+          lastReadSource = 'unpkg';
+          applyLoadedConfig(unpkgResult.config, 'unpkg');
+          return;
+        }
+
+        setStatus('All sources failed', 'error');
+      });
+    });
+  });
+}
+
 // ═══ Rendering ═══
 
-function renderConfig() {
-  // Password
-  document.getElementById('currentPw').textContent = config.password || '(none)';
-
-  // Games
+function renderGames() {
   var games = config.games || [];
   var blocked = config.blocked || {};
   var html = '';
 
+  if (games.length === 0) {
+    document.getElementById('gamesList').innerHTML = '<p class="list-empty">No games added yet.</p>';
+    return;
+  }
+
   games.forEach(function(id) {
     var blockVal = blocked[id];
-    var badgeHtml, actionHtml;
+    var badgeHtml;
+    var actionHtml;
+    var encodedId = encodeURIComponent(id);
 
     if (blockVal === true) {
       badgeHtml = '<span class="badge badge-blocked">Blocked</span>';
-      actionHtml = '<button class="btn-icon unblock-btn" onclick="unblockGame(\'' + id + '\')" title="Unblock">&#x2705;</button>';
+      actionHtml =
+        '<div class="row-actions">' +
+        '<button class="btn-icon unblock-btn" onclick="unblockGame(decodeURIComponent(\'' + encodedId + '\'))" title="Unblock">&#x2705;</button>' +
+        '<button class="btn-icon remove-btn" onclick="removeGame(decodeURIComponent(\'' + encodedId + '\'))" title="Remove Game">&times;</button>' +
+        '</div>';
     } else if (typeof blockVal === 'string') {
       var d = new Date(blockVal);
       var now = new Date();
       if (d > now) {
-        var label = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-        badgeHtml = '<span class="badge badge-timed">Until ' + label + '</span>';
-        actionHtml = '<button class="btn-icon unblock-btn" onclick="unblockGame(\'' + id + '\')" title="Unblock">&#x2705;</button>';
+        var label = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        badgeHtml = '<span class="badge badge-timed">Until ' + escapeHtml(label) + '</span>';
+        actionHtml =
+          '<div class="row-actions">' +
+          '<button class="btn-icon unblock-btn" onclick="unblockGame(decodeURIComponent(\'' + encodedId + '\'))" title="Unblock">&#x2705;</button>' +
+          '<button class="btn-icon remove-btn" onclick="removeGame(decodeURIComponent(\'' + encodedId + '\'))" title="Remove Game">&times;</button>' +
+          '</div>';
       } else {
         badgeHtml = '<span class="badge badge-active">Active</span>';
-        actionHtml = blockButtons(id);
+        actionHtml = gameActionButtons(encodedId);
       }
     } else {
       badgeHtml = '<span class="badge badge-active">Active</span>';
-      actionHtml = blockButtons(id);
+      actionHtml = gameActionButtons(encodedId);
     }
 
-    html += '<div class="game-row">' +
-      '<span class="game-name">' + formatName(id) + '</span>' +
-      badgeHtml + actionHtml +
+    html +=
+      '<div class="game-row">' +
+        '<span class="game-name">' + escapeHtml(formatName(id)) + '</span>' +
+        badgeHtml +
+        actionHtml +
       '</div>' +
-      '<div class="time-picker" id="tp_' + id + '">' +
-      '<label style="font-size:13px;color:#999;">Block until:</label>' +
-      '<div class="time-picker-row">' +
-      '<input type="datetime-local" id="dt_' + id + '">' +
-      '<button class="btn btn-primary" onclick="timeblockGame(\'' + id + '\')" style="padding:8px 16px;">Set</button>' +
-      '</div></div>';
+      '<div class="time-picker" id="tp_' + escapeHtml(id) + '">' +
+        '<label style="font-size:13px;color:#999;">Block until:</label>' +
+        '<div class="time-picker-row">' +
+          '<input type="datetime-local" id="dt_' + escapeHtml(id) + '">' +
+          '<button class="btn btn-primary" onclick="timeblockGame(decodeURIComponent(\'' + encodedId + '\'))" style="padding:8px 16px;">Set</button>' +
+        '</div>' +
+      '</div>';
   });
 
   document.getElementById('gamesList').innerHTML = html;
 }
 
-function blockButtons(id) {
-  return '<button class="btn-icon block-btn" onclick="blockGame(\'' + id + '\')" title="Block">&#x1F6AB;</button>' +
-    '<button class="btn-icon time-btn" onclick="toggleTimePicker(\'' + id + '\')" title="Time Block">&#x1F552;</button>';
+function gameActionButtons(encodedId) {
+  return (
+    '<div class="row-actions">' +
+      '<button class="btn-icon block-btn" onclick="blockGame(decodeURIComponent(\'' + encodedId + '\'))" title="Block">&#x1F6AB;</button>' +
+      '<button class="btn-icon time-btn" onclick="toggleTimePicker(decodeURIComponent(\'' + encodedId + '\'))" title="Time Block">&#x1F552;</button>' +
+      '<button class="btn-icon remove-btn" onclick="removeGame(decodeURIComponent(\'' + encodedId + '\'))" title="Remove Game">&times;</button>' +
+    '</div>'
+  );
+}
+
+function renderAllowedIps() {
+  var allowedIps = normalizeAllowedIps(config.allowedIps);
+  var keys = Object.keys(allowedIps).sort();
+  var html = '';
+
+  if (keys.length === 0) {
+    document.getElementById('allowedIpsList').innerHTML = '<p class="list-empty">No allowed IPs yet.</p>';
+    return;
+  }
+
+  keys.forEach(function(ip) {
+    var encodedIp = encodeURIComponent(ip);
+    var label = trimString(allowedIps[ip].label) || 'No label';
+    html +=
+      '<div class="ip-row">' +
+        '<div class="ip-main">' +
+          '<span class="ip-label">' + escapeHtml(label) + '</span>' +
+          '<span class="ip-address">' + escapeHtml(ip) + '</span>' +
+        '</div>' +
+        '<span class="badge badge-ip">Allowed</span>' +
+        '<div class="row-actions">' +
+          '<button class="btn-icon remove-btn" onclick="removeAllowedIp(decodeURIComponent(\'' + encodedIp + '\'))" title="Remove Allowed IP">&times;</button>' +
+        '</div>' +
+      '</div>';
+  });
+
+  document.getElementById('allowedIpsList').innerHTML = html;
+}
+
+function renderConfig() {
+  document.getElementById('currentPw').textContent =
+    config.passwords && config.passwords.length > 1 ? config.passwords.join(' / ') : (config.password || '(none)');
+  renderGames();
+  renderAllowedIps();
 }
 
 function toggleTimePicker(id) {
@@ -355,115 +874,301 @@ function toggleTimePicker(id) {
   if (el) el.classList.toggle('active');
 }
 
-// ═══ Write Operations (dual-source) ═══
+// ═══ Writes (GitHub + jsDelivr) ═══
 
-function writeConfig(callback) {
-  var configStr = JSON.stringify(config);
-  var pending = 2;
-  var results = { github: false, gas: false };
+function updateWriteStatus(result) {
+  var githubOk = !!(result && result.github && result.github.ok);
+  var jsdelivrOk = !!(result && result.jsdelivr && result.jsdelivr.ok);
 
-  function checkDone() {
-    pending--;
-    if (pending > 0) return;
-    if (results.github && results.gas) {
-      setStatus('Both synced', 'ok');
-      showToast('Updated', 'success');
-    } else if (results.github || results.gas) {
-      var which = results.github ? 'GitHub only' : 'GAS only';
-      setStatus('Partial sync (' + which + ')', 'partial');
-      showToast('Partial sync: ' + which, 'error');
-    } else {
-      setStatus('Write failed', 'error');
-      showToast('Failed to write to both sources', 'error');
+  if (githubOk && jsdelivrOk) {
+    setStatus('Synced (GitHub + jsdelivr)', 'ok');
+    showToast('Saved', 'success');
+  } else if (githubOk) {
+    setStatus('Saved (GitHub, jsdelivr pending)', 'partial');
+    showToast('Saved', 'success');
+  } else {
+    setStatus('Write failed', 'error');
+    showToast('Write failed', 'error');
+  }
+}
+
+function serializeConfigForWrite() {
+  var normalized = normalizeConfig(config);
+  return {
+    password: normalized.password,
+    passwords: normalized.passwords,
+    blocked: normalized.blocked,
+    games: normalized.games,
+    allowedIps: normalized.allowedIps,
+  };
+}
+
+function encodeGitHubContent(value) {
+  return btoa(unescape(encodeURIComponent(value)));
+}
+
+function nextConfigVersionTag() {
+  return '0.0.' + Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+}
+
+function createGitHubVersionTag(commitSha, attempt) {
+  var tries = attempt || 0;
+  if (!commitSha) return Promise.reject(new Error('GitHub commit missing'));
+
+  return fetch('https://api.github.com/repos/' + GITHUB_REPO + '/git/refs', {
+    method: 'POST',
+    headers: {
+      Authorization: 'token ' + GITHUB_PAT,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ref: 'refs/tags/' + nextConfigVersionTag(),
+      sha: commitSha,
+    }),
+  })
+    .then(function(response) {
+      if (response.status === 422 && tries < 2) {
+        return createGitHubVersionTag(commitSha, tries + 1);
+      }
+      if (!response.ok) throw new Error('GitHub tag failed');
+      return response.json();
+    })
+    .then(function(body) {
+      return trimString(body && body.ref).replace(/^refs\/tags\//, '');
+    });
+}
+
+function waitForJsdelivrSync(serializedConfig, attemptsLeft, preferredVersion) {
+  var remaining = typeof attemptsLeft === 'number' ? attemptsLeft : 10;
+  var preferredUrl = buildJsdelivrVersionUrl(JSDELIVR_URL, preferredVersion);
+
+  function verifyResolvedResult(result) {
+    if (result.ok && configsMatch(result.config, serializedConfig)) {
+      return { ok: true, url: result.url || preferredUrl || '' };
     }
-    if (callback) callback();
+    if (remaining <= 1) {
+      return { ok: false, reason: 'jsDelivr still serving older config' };
+    }
+
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        resolve(waitForJsdelivrSync(serializedConfig, remaining - 1, preferredVersion));
+      }, 1000);
+    });
   }
 
-  // 1. Write to GitHub API
-  var b64 = btoa(unescape(encodeURIComponent(configStr)));
-  var body = { message: 'Admin update', content: b64 };
-  if (currentSha) body.sha = currentSha;
-
-  fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/config.json', {
-    method: 'PUT',
-    headers: {
-      'Authorization': 'token ' + GITHUB_PAT,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.content && d.content.sha) {
-        currentSha = d.content.sha;
-        results.github = true;
+  if (preferredUrl) {
+    return readJsdelivrConfigFromUrl(preferredUrl).then(function(result) {
+      if (result.ok && configsMatch(result.config, serializedConfig)) {
+        rememberJsdelivrVersion(preferredVersion);
+        return { ok: true, url: preferredUrl };
       }
-      // Purge jsdelivr cache
-      return fetch('https://purge.jsdelivr.net/gh/' + GITHUB_REPO + '@main/config.json');
-    })
-    .catch(function() {})
-    .then(function() { checkDone(); });
+      return readJsdelivrConfig().then(verifyResolvedResult);
+    });
+  }
 
-  // 2. Write to GAS (fullSync via JSONP)
-  var encoded = encodeURIComponent(configStr);
-  var cbName = '__wr_' + Date.now();
-  window[cbName] = function(resp) {
-    delete window[cbName];
-    if (resp && resp.success) results.gas = true;
-    checkDone();
+  return readJsdelivrConfig().then(verifyResolvedResult);
+}
+
+function writeGitHubMirror(serializedConfig) {
+  if (!GITHUB_REPO || !GITHUB_PAT || !window.fetch) {
+    return Promise.resolve({ ok: false, skipped: true, reason: 'GitHub unavailable' });
+  }
+
+  var apiUrl = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/config.json';
+  var readHeaders = {
+    Authorization: 'token ' + GITHUB_PAT,
+    Accept: 'application/vnd.github+json',
   };
-  var s = document.createElement('script');
-  s.src = GAS_URL + '?action=write&key=' + encodeURIComponent(GAS_SECRET) +
-    '&writeAction=fullSync&config=' + encoded + '&callback=' + cbName;
-  s.onerror = function() { checkDone(); };
-  document.head.appendChild(s);
+
+  return fetch(apiUrl, { headers: readHeaders })
+    .then(function(response) {
+      if (response.status === 404) return { sha: '' };
+      if (!response.ok) throw new Error('GitHub read failed');
+      return response.json();
+    })
+    .then(function(body) {
+      var payload = {
+        message: 'Sync config from admin panel',
+        content: encodeGitHubContent(JSON.stringify(serializedConfig, null, 2) + '\n'),
+      };
+      if (body && body.sha) payload.sha = body.sha;
+
+      return fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: 'token ' + GITHUB_PAT,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    })
+    .then(function(response) {
+      if (!response.ok) throw new Error('GitHub write failed');
+      return response.json();
+    })
+    .then(function(body) {
+      return createGitHubVersionTag(body && body.commit && body.commit.sha);
+    })
+    .then(function(versionTag) {
+      rememberJsdelivrVersion(versionTag);
+      return fetch('https://purge.jsdelivr.net/gh/' + GITHUB_REPO + '@latest/config.json')
+        .then(function(response) {
+          return { purgeOk: !!(response && response.ok), versionTag: versionTag };
+        });
+    })
+    .then(function(result) {
+      if (!result.purgeOk) {
+        return { ok: true, jsdelivr: false, versionTag: result.versionTag, reason: 'jsDelivr purge failed' };
+      }
+      return waitForJsdelivrSync(serializedConfig, 10, result.versionTag).then(function(syncResult) {
+        if (!syncResult.ok) clearCachedJsdelivrVersion();
+        return {
+          ok: true,
+          jsdelivr: !!syncResult.ok,
+          versionTag: result.versionTag,
+          reason: syncResult.reason || '',
+        };
+      });
+    })
+    .catch(function(error) {
+      return { ok: false, reason: error && error.message ? error.message : 'GitHub write failed', jsdelivr: false };
+    });
+}
+
+function writeConfig(callback) {
+  var serializedConfig = serializeConfigForWrite();
+  var previousConfig = normalizeConfig(config);
+  var pendingConfig = normalizeConfig(serializedConfig);
+
+  config = pendingConfig;
+  renderConfig();
+
+  writeGitHubMirror(serializedConfig).then(function(githubResult) {
+    var writeResult = {
+      github: githubResult,
+      jsdelivr: { ok: !!githubResult.jsdelivr },
+    };
+
+    if (!githubResult.ok) {
+      config = previousConfig;
+      renderConfig();
+      setStatus('Write failed', 'error');
+      showToast(githubResult.reason || 'Write failed', 'error');
+      return;
+    }
+
+    config = normalizeConfig(serializedConfig);
+    renderConfig();
+
+    if (githubResult.jsdelivr) {
+      setStatus('Synced (GitHub + jsdelivr)', 'ok');
+    } else {
+      setStatus('Saved (GitHub only, jsdelivr pending)', 'partial');
+    }
+    showToast('Saved', 'success');
+    if (callback) callback(writeResult);
+  });
 }
 
 // ═══ Actions ═══
 
 function updatePassword() {
-  var pw = document.getElementById('pwInput').value.trim();
-  if (!pw) { showToast('Enter a password', 'error'); return; }
+  var pw = trimString(document.getElementById('pwInput').value);
+  if (!pw) {
+    showToast('Enter a password', 'error');
+    return;
+  }
+
   config.password = pw;
+  config.passwords = [pw];
   writeConfig(function() {
     document.getElementById('pwInput').value = '';
-    renderConfig();
   });
 }
 
 function blockGame(id) {
   config.blocked = config.blocked || {};
   config.blocked[id] = true;
-  writeConfig(function() { renderConfig(); });
+  writeConfig();
 }
 
 function unblockGame(id) {
   if (config.blocked) delete config.blocked[id];
-  writeConfig(function() { renderConfig(); });
+  writeConfig();
 }
 
 function timeblockGame(id) {
   var dt = document.getElementById('dt_' + id);
-  if (!dt || !dt.value) { showToast('Pick a date/time', 'error'); return; }
+  if (!dt || !dt.value) {
+    showToast('Pick a date/time', 'error');
+    return;
+  }
+
   config.blocked = config.blocked || {};
   config.blocked[id] = new Date(dt.value).toISOString();
-  writeConfig(function() { renderConfig(); });
+  writeConfig(function() {
+    toggleTimePicker(id);
+  });
 }
 
 function addGame() {
-  var id = document.getElementById('addGameInput').value.trim().toLowerCase().replace(/\s+/g, '-');
-  if (!id) { showToast('Enter a game ID', 'error'); return; }
+  var rawValue = document.getElementById('addGameInput').value;
+  var id = normalizeGameIdInput(rawValue);
+  if (!id) {
+    showToast('Enter a valid game ID', 'error');
+    return;
+  }
+  if ((config.games || []).indexOf(id) !== -1) {
+    showToast('Game already exists', 'error');
+    return;
+  }
+
   config.games = config.games || [];
-  if (config.games.indexOf(id) !== -1) { showToast('Game already exists', 'error'); return; }
   config.games.push(id);
   writeConfig(function() {
     document.getElementById('addGameInput').value = '';
-    renderConfig();
   });
+}
+
+function removeGame(id) {
+  if (!window.confirm('Remove ' + formatName(id) + '?')) return;
+  config.games = (config.games || []).filter(function(existingId) { return existingId !== id; });
+  if (config.blocked) delete config.blocked[id];
+  writeConfig();
+}
+
+function addAllowedIp() {
+  var ip = trimString(document.getElementById('allowedIpInput').value);
+  var label = trimString(document.getElementById('allowedIpLabelInput').value);
+
+  if (!ip) {
+    showToast('Enter an IP address', 'error');
+    return;
+  }
+
+  config.allowedIps = normalizeAllowedIps(config.allowedIps);
+  config.allowedIps[ip] = { label: label };
+  writeConfig(function() {
+    document.getElementById('allowedIpInput').value = '';
+    document.getElementById('allowedIpLabelInput').value = '';
+  });
+}
+
+function removeAllowedIp(ip) {
+  config.allowedIps = normalizeAllowedIps(config.allowedIps);
+  delete config.allowedIps[ip];
+  writeConfig();
 }
 
 // ═══ Init ═══
 loadConfig();
+if (PANEL_MODE === 'real') {
+  var keysSection = document.getElementById('adminKeysSection');
+  if (keysSection) keysSection.style.display = '';
+}
 </script>
 </body>
 </html>

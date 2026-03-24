@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CDN Accessibility Tester</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 24px; }
+  h1 { color: #f0f6fc; font-size: 1.4em; margin-bottom: 4px; }
+  .subtitle { color: #8b949e; font-size: 0.85em; margin-bottom: 20px; }
+  .category { margin-bottom: 18px; }
+  .category-label { color: #58a6ff; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #21262d; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 4px; margin-bottom: 3px; font-size: 0.82em; }
+  .row.ok       { background: #0d2a0d; }
+  .row.ok-cors  { background: #0a3a1a; }
+  .row.pending  { background: #1a1a1a; }
+  .row.blocked  { background: #2a0d0d; }
+  .row.timeout  { background: #2a1a0d; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok       { background: #3fb950; }
+  .dot-ok-cors  { background: #56d364; }
+  .dot-pending  { background: #555; animation: pulse 1s infinite; }
+  .dot-blocked  { background: #f85149; }
+  .dot-timeout  { background: #d29922; }
+  .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note { color: #8b949e; font-size: 0.9em; flex: 0 0 auto; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .status { flex: 0 0 160px; text-align: right; }
+  .status.ok       { color: #3fb950; }
+  .status.ok-cors  { color: #56d364; }
+  .status.pending  { color: #555; }
+  .status.blocked  { color: #f85149; }
+  .status.timeout  { color: #d29922; }
+  .time { flex: 0 0 60px; text-align: right; color: #8b949e; font-size: 0.85em; }
+  #summary { margin-top: 24px; padding: 12px 16px; border-radius: 6px; background: #161b22; border: 1px solid #30363d; font-size: 0.9em; }
+  .pass { color: #3fb950; }
+  .fail { color: #f85149; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .btn-row { margin-top: 14px; display: flex; gap: 10px; }
+  .retest, .export-btn { padding: 6px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; cursor: pointer; font-family: inherit; font-size: 0.85em; }
+  .retest:hover, .export-btn:hover { background: #30363d; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #3fb950; color: #0d1117; padding: 8px 20px; border-radius: 6px; font-family: inherit; font-size: 0.85em; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1000; }
+  .toast.show { opacity: 1; }
+  /* Provider switching guide */
+  .guide-toggle { margin-top: 24px; background: none; border: 1px solid #30363d; border-radius: 6px; color: #58a6ff; cursor: pointer; font-family: inherit; font-size: 0.82em; padding: 8px 14px; text-align: left; width: 100%; }
+  .guide-toggle:hover { background: #161b22; }
+  .guide-content { display: none; margin-top: 0; padding: 14px 16px; background: #161b22; border: 1px solid #30363d; border-top: none; border-radius: 0 0 6px 6px; font-size: 0.82em; line-height: 1.6; }
+  .guide-content.open { display: block; }
+  .guide-content h3 { color: #58a6ff; font-size: 0.9em; margin: 10px 0 4px 0; }
+  .guide-content h3:first-child { margin-top: 0; }
+  .guide-content ul { margin: 0 0 0 18px; padding: 0; }
+  .guide-content li { margin-bottom: 2px; }
+  .guide-content code { background: #21262d; padding: 1px 5px; border-radius: 3px; font-size: 0.95em; }
+  .guide-content .dim { color: #8b949e; }
+</style>
+</head>
+<body>
+<!-- LOCK-BANNER START -->
+<div id="secretBar"
+     style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 48px;
+        background: linear-gradient(90deg, #4e54c8, #8f94fb);
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        z-index: 9999;
+     ">
+  <a href="#"
+     onclick="return lockBannerOpenCurrent(event);"
+     onmouseenter="lockBannerSetTextHover(this,true);"
+     onmouseleave="lockBannerSetTextHover(this,false);"
+     style="
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 168px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-decoration: none;
+        font-weight: bold;
+        z-index: 2;
+        transition: color 0.15s ease;
+     ">
+     Open in New Tab
+  </a>
+  <button type="button"
+          title="Toggle Fullscreen"
+          onclick="return lockBannerToggleFullscreen(event);"
+          onmouseenter="lockBannerSetHover(this,true);"
+          onmouseleave="lockBannerSetHover(this,false);"
+          style="
+             position: absolute;
+             right: 112px;
+             top: 0;
+             width: 56px;
+             height: 100%;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             font-size: 18px;
+             font-weight: bold;
+             color: white;
+             border: none;
+             background: transparent;
+             cursor: pointer;
+             z-index: 3;
+             user-select: none;
+             transition: color 0.15s ease, background-color 0.15s ease;
+          ">
+    &#x26F6;
+  </button>
+  <button type="button"
+          title="Legacy Open in New Tab method (can fail in some small web code editors)."
+          aria-label="Open in New Tab (legacy method)"
+          onclick="return lockBannerOpenLegacy(event);"
+          onmouseenter="lockBannerSetHover(this,true);"
+          onmouseleave="lockBannerSetHover(this,false);"
+          style="
+             position: absolute;
+             right: 56px;
+             top: 0;
+             width: 56px;
+             height: 100%;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             font-size: 20px;
+             font-weight: bold;
+             color: white;
+             border: none;
+             background: transparent;
+             cursor: pointer;
+             z-index: 3;
+             user-select: none;
+             transition: color 0.15s ease, background-color 0.15s ease;
+          ">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+  </button>
+  <button type="button"
+          title="Close Banner"
+          onclick="return lockBannerRemove(event);"
+          onmouseenter="lockBannerSetHover(this,true);"
+          onmouseleave="lockBannerSetHover(this,false);"
+          style="
+             position: absolute;
+             right: 0;
+             top: 0;
+             width: 56px;
+             height: 100%;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             font-size: 22px;
+             font-weight: bold;
+             color: white;
+             border: none;
+             background: transparent;
+             cursor: pointer;
+             z-index: 3;
+             user-select: none;
+             transition: color 0.15s ease, background-color 0.15s ease;
+          ">
+    &times;
+  </button>
+</div>
+<script>
+(function() {
+  if (window.__LOCK_BANNER_V4__) return;
+  window.__LOCK_BANNER_V4__ = true;
+
+  window.lockBannerSetTextHover = function(el, active) {
+    if (!el) return false;
+    el.style.color = active ? '#d8dcff' : 'white';
+    el.style.backgroundColor = 'transparent';
+    return false;
+  };
+
+  window.lockBannerSetHover = function(el, active) {
+    if (!el) return false;
+    el.style.color = active ? '#d8dcff' : 'white';
+    el.style.backgroundColor = active ? 'rgba(255,255,255,0.12)' : 'transparent';
+    return false;
+  };
+
+  window.lockBannerRemove = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var secretBar = document.getElementById('secretBar');
+    if (secretBar) secretBar.remove();
+    var frame = document.getElementById('gameFrame');
+    if (frame) { frame.style.top = '0'; frame.style.height = '100%'; }
+    return false;
+  };
+
+  window.lockBannerOpenCurrent = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var win = window.open('about:blank', '_blank');
+    if (!win) return false;
+    try { win.opener = null; } catch (err) {}
+    if (win.focus) win.focus();
+
+    var html;
+    var gameFrame = document.getElementById('gameFrame');
+    if (gameFrame && gameFrame.contentDocument) {
+      html = gameFrame.contentDocument.documentElement.outerHTML;
+    } else {
+      html = document.documentElement.outerHTML;
+      html = html.replace(
+        /<!--\s*LOCK-BANNER START\s*-->[\s\S]*?<!--\s*LOCK-BANNER END\s*-->/i,
+        ''
+      );
+    }
+
+    win.document.open();
+    win.document.write('<!DOCTYPE html>\n' + html);
+    win.document.close();
+    return false;
+  };
+
+  window.lockBannerOpenLegacy = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var href = window.location.href;
+    try {
+      var currentUrl = new URL(window.location.href);
+      var pathParts = currentUrl.pathname.split('/');
+      var fileName = pathParts[pathParts.length - 1];
+      if (!fileName && pathParts.length > 1) {
+        fileName = pathParts[pathParts.length - 2];
+      }
+      if (fileName) {
+        href = fileName + currentUrl.search + currentUrl.hash;
+      }
+    } catch (err) {}
+
+    var link = document.createElement('a');
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return false;
+  };
+
+  window.lockBannerToggleFullscreen = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(function() {});
+      return false;
+    }
+    var root = document.documentElement;
+    var request =
+      root.requestFullscreen ||
+      root.webkitRequestFullscreen ||
+      root.mozRequestFullScreen ||
+      root.msRequestFullscreen;
+    if (request) request.call(root);
+    return false;
+  };
+})();
+</script>
+<!-- LOCK-BANNER END -->
+
+
+<h1>CDN Accessibility Tester</h1>
+<p class="subtitle">Tests which CDNs are reachable from this network. ✓✓ = readable (CORS OK), ✓ = reachable (no CORS), ✗ = blocked.</p>
+
+<div id="results"></div>
+<div id="summary">Starting tests…</div>
+<div class="btn-row">
+  <button class="retest" onclick="runAll()">Re-test all</button>
+  <button class="export-btn" onclick="exportResults()">Export Results</button>
+</div>
+
+<div id="toast" class="toast">Copied!</div>
+
+<button class="guide-toggle" id="guideToggle" onclick="toggleGuide()">&#9654; Provider Switching Guide</button>
+<div class="guide-content" id="guideContent">
+  <h3>CDNs that can serve config.json from a GitHub repo</h3>
+  <ul>
+    <li><strong>jsDelivr</strong> (current) &mdash; serves files via <code>cdn.jsdelivr.net/gh/user/repo@tag/file</code></li>
+    <li><strong>Statically</strong> &mdash; serves via <code>cdn.statically.io/gh/user/repo/tag/file</code></li>
+    <li><strong>GitHack</strong> &mdash; serves via <code>rawcdn.githack.com/user/repo/tag/file</code></li>
+    <li><strong>GitHub raw</strong> &mdash; direct raw content via <code>raw.githubusercontent.com</code> (no CDN caching)</li>
+  </ul>
+
+  <h3>CDNs that require npm publishing</h3>
+  <ul>
+    <li><strong>unpkg</strong> &mdash; serves npm packages only; would need to publish config as an npm package</li>
+    <li><strong>esm.sh</strong> &mdash; ES module CDN for npm packages</li>
+    <li><strong>Skypack</strong> &mdash; ESM CDN for npm packages</li>
+    <li><strong>cdnjs</strong> &mdash; curated library CDN; requires submitting a library</li>
+  </ul>
+
+  <h3>How to switch providers</h3>
+  <ul>
+    <li>Edit <code>.secure-config</code> to update the CDN URL template</li>
+    <li>Run <code>./Formatting Scripts/sync-protocol-versions.sh --force</code> to regenerate all secure files</li>
+    <li class="dim">The GAS fallback endpoint remains unchanged regardless of CDN choice</li>
+  </ul>
+</div>
+
+<script>
+var CDNS = [
+  // jsDelivr variants
+  { cat: 'jsDelivr (current CDN)', name: 'jsDelivr — npm packages',         url: 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js',             note: 'Primary CDN used by this project' },
+  { cat: 'jsDelivr (current CDN)', name: 'jsDelivr — GitHub repo files',     url: 'https://cdn.jsdelivr.net/gh/jquery/jquery@3.7.1/dist/jquery.min.js',       note: 'config.json served via this' },
+  { cat: 'jsDelivr (current CDN)', name: 'jsDelivr — Fastly edge',           url: 'https://fastly.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js',         note: 'jsDelivr on Fastly backbone' },
+
+  // Other GitHub file CDNs
+  { cat: 'GitHub file CDNs',       name: 'Statically',                       url: 'https://cdn.statically.io/gh/jquery/jquery/3.7.1/dist/jquery.min.js',     note: 'GitHub raw files via CDN' },
+  { cat: 'GitHub file CDNs',       name: 'GitHack (rawcdn)',                 url: 'https://rawcdn.githack.com/jquery/jquery/3.7.1/dist/jquery.min.js',       note: 'Cached raw GitHub files' },
+  { cat: 'GitHub file CDNs',       name: 'GitHub raw (direct)',              url: 'https://raw.githubusercontent.com/jquery/jquery/3.7.1/dist/jquery.min.js', note: 'Direct GitHub raw (no CDN)' },
+  { cat: 'GitHub file CDNs',       name: 'GitHub Pages (github.io)',         url: 'https://pages.github.com/',                                                note: 'github.io domain reachability' },
+
+  // npm CDNs
+  { cat: 'npm CDNs',               name: 'cdnjs (Cloudflare)',               url: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js',       note: 'Cloudflare-hosted library CDN' },
+  { cat: 'npm CDNs',               name: 'unpkg',                            url: 'https://unpkg.com/jquery@3.7.1/dist/jquery.min.js',                       note: 'npm CDN (on Cloudflare)' },
+  { cat: 'npm CDNs',               name: 'esm.sh',                           url: 'https://esm.sh/is-plain-object@5.0.0',                                    note: 'Modern ES module CDN' },
+  { cat: 'npm CDNs',               name: 'Skypack',                          url: 'https://cdn.skypack.dev/is-plain-object@5.0.0',                            note: 'ESM CDN' },
+  { cat: 'npm CDNs',               name: 'jspm (GA)',                        url: 'https://ga.jspm.io/npm:is-plain-object@5.0.0/index.js',                   note: 'jspm CDN' },
+  { cat: 'npm CDNs',               name: 'jsDelivr — npm packages (alt)',    url: 'https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js',               note: 'jsDelivr npm pathway' },
+
+  // General CDNs
+  { cat: 'General CDNs',           name: 'Google CDN (googleapis)',           url: 'https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js',        note: 'Google-hosted libraries' },
+  { cat: 'General CDNs',           name: 'Microsoft CDN (aspnetcdn)',         url: 'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.7.1.min.js',              note: 'Microsoft AJAX CDN' },
+
+  // Hosting platforms
+  { cat: 'Hosting platforms',      name: 'Cloudflare Workers (workers.cf)',   url: 'https://workers.cloudflare.com/',                                          note: 'CF Workers/Pages platform' },
+  { cat: 'Hosting platforms',      name: 'Cloudflare Pages (pages.dev)',      url: 'https://cloudflare-pages-demo.pages.dev/',                                 note: '*.pages.dev domain' },
+  { cat: 'Hosting platforms',      name: 'Vercel (via nextjs.org)',           url: 'https://nextjs.org/',                                                      note: 'Hosted on Vercel infra' },
+  { cat: 'Hosting platforms',      name: 'Netlify (netlify.app)',             url: 'https://app.netlify.com/',                                                 note: 'Netlify platform domain' },
+  { cat: 'Hosting platforms',      name: 'Render',                           url: 'https://onrender.com/',                                                    note: 'Render hosting platform' },
+
+  // School-Friendly Services
+  { cat: 'School-Friendly Services', name: 'Google Fonts API',               url: 'https://fonts.googleapis.com/css2?family=Roboto',                          note: 'Google Workspace dependency' },
+  { cat: 'School-Friendly Services', name: 'Google APIs (storage)',           url: 'https://storage.googleapis.com/goog-phishing-shavar/1',                   note: 'GCP / Chrome Safe Browsing' },
+  { cat: 'School-Friendly Services', name: 'Microsoft Graph',                url: 'https://graph.microsoft.com/v1.0/$metadata',                               note: 'Office 365 dependency' },
+  { cat: 'School-Friendly Services', name: 'Apple CDN',                      url: 'https://configuration.apple.com/configurations/internetservices/devicemanagement/casd', note: 'Apple device management' },
+  { cat: 'School-Friendly Services', name: 'Cloudflare 1.1.1.1 API',        url: 'https://cloudflare-dns.com/dns-query?name=example.com&type=A',             note: 'Cloudflare DNS-over-HTTPS' },
+
+  // GitHub Alternatives
+  { cat: 'GitHub Alternatives',    name: 'raw.githubusercontent.com',         url: 'https://raw.githubusercontent.com/nicolo-ribaudo/tc39-proposal-first-or-last-element/refs/heads/main/README.md', note: 'GitHub raw content (no CDN)' },
+  { cat: 'GitHub Alternatives',    name: 'GitHub Gist raw',                   url: 'https://gist.githubusercontent.com/paulirish/5d52fb081b3570c81e3a/raw/1eb86c4a1db92363d39c3de0daba81fb60283771/what-forces-layout.md', note: 'Gist raw content' }
+];
+
+var TIMEOUT_MS = 8000;
+var testResults = {};
+
+function makeTimeout(ms) {
+  return new Promise(function(_, reject) {
+    setTimeout(function() { reject(new Error('timeout')); }, ms);
+  });
+}
+
+function testOne(url) {
+  var start = Date.now();
+  return Promise.race([fetch(url, { cache: 'no-store' }), makeTimeout(TIMEOUT_MS)])
+    .then(function(resp) {
+      var ms = Date.now() - start;
+      if (resp.ok) return { status: 'ok-cors', ms: ms, detail: 'HTTP ' + resp.status + ' (readable)' };
+      return { status: 'ok', ms: ms, detail: 'HTTP ' + resp.status };
+    })
+    .catch(function(corsErr) {
+      if (corsErr.message === 'timeout') return { status: 'timeout', ms: TIMEOUT_MS, detail: 'Timed out' };
+      var start2 = Date.now();
+      return Promise.race([fetch(url, { mode: 'no-cors', cache: 'no-store' }), makeTimeout(TIMEOUT_MS)])
+        .then(function() {
+          return { status: 'ok', ms: Date.now() - start2, detail: 'Reachable (no CORS)' };
+        })
+        .catch(function(netErr) {
+          if (netErr.message === 'timeout') return { status: 'timeout', ms: Date.now() - start, detail: 'Timed out' };
+          return { status: 'blocked', ms: Date.now() - start, detail: 'Network error' };
+        });
+    });
+}
+
+var ICONS = { 'ok-cors': '\u2713\u2713', ok: '\u2713', blocked: '\u2717', timeout: '\u23F1', pending: '\u2026' };
+var rowEls = {};
+
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function buildUI() {
+  var container = document.getElementById('results');
+  container.textContent = '';
+  rowEls = {};
+
+  var catOrder = [], seen = {};
+  CDNS.forEach(function(cdn) { if (!seen[cdn.cat]) { seen[cdn.cat] = true; catOrder.push(cdn.cat); } });
+
+  catOrder.forEach(function(cat) {
+    var section = el('div', 'category');
+    section.appendChild(el('div', 'category-label', cat));
+
+    CDNS.forEach(function(cdn) {
+      if (cdn.cat !== cat) return;
+      var row = el('div', 'row pending');
+      row.appendChild(el('div', 'dot dot-pending'));
+      row.appendChild(el('div', 'name', cdn.name));
+      row.appendChild(el('div', 'note', cdn.note));
+      row.appendChild(el('div', 'status pending', '\u2026'));
+      row.appendChild(el('div', 'time', ''));
+      section.appendChild(row);
+      rowEls[cdn.url] = row;
+    });
+
+    container.appendChild(section);
+  });
+}
+
+function updateRow(url, result) {
+  var row = rowEls[url];
+  if (!row) return;
+  row.className = 'row ' + result.status;
+  row.querySelector('.dot').className = 'dot dot-' + result.status;
+  var st = row.querySelector('.status');
+  st.className = 'status ' + result.status;
+  st.textContent = (ICONS[result.status] || '?') + ' ' + result.detail;
+  row.querySelector('.time').textContent = result.ms < TIMEOUT_MS + 100 ? result.ms + 'ms' : '';
+}
+
+function updateSummary(done, total, passed) {
+  var el = document.getElementById('summary');
+  el.textContent = '';
+  if (done < total) {
+    el.textContent = 'Testing\u2026 ' + done + '/' + total;
+    return;
+  }
+  var p = document.createElement('span');
+  p.className = 'pass';
+  p.textContent = '\u2713 ' + passed + ' accessible';
+  var f = document.createElement('span');
+  f.className = 'fail';
+  f.textContent = '\u2717 ' + (total - passed) + ' blocked/timeout';
+  el.appendChild(p);
+  el.appendChild(document.createTextNode('  '));
+  el.appendChild(f);
+  el.appendChild(document.createTextNode('  \u2014 ' + total + ' CDNs tested'));
+}
+
+function runAll() {
+  buildUI();
+  testResults = {};
+  var done = 0, passed = 0, total = CDNS.length;
+  updateSummary(0, total, 0);
+
+  CDNS.forEach(function(cdn) {
+    testOne(cdn.url).then(function(result) {
+      updateRow(cdn.url, result);
+      testResults[cdn.url] = {
+        category: cdn.cat,
+        name: cdn.name,
+        status: result.status,
+        detail: result.detail,
+        ms: result.ms,
+        url: cdn.url
+      };
+      done++;
+      if (result.status === 'ok' || result.status === 'ok-cors') passed++;
+      updateSummary(done, total, passed);
+    });
+  });
+}
+
+function exportResults() {
+  var results = [];
+  var summaryObj = { total: 0, accessible: 0, blocked: 0, timeout: 0 };
+
+  CDNS.forEach(function(cdn) {
+    var r = testResults[cdn.url];
+    if (r) {
+      results.push({
+        category: r.category,
+        name: r.name,
+        status: r.status,
+        detail: r.detail,
+        ms: r.ms,
+        url: r.url
+      });
+      summaryObj.total++;
+      if (r.status === 'ok' || r.status === 'ok-cors') {
+        summaryObj.accessible++;
+      } else if (r.status === 'blocked') {
+        summaryObj.blocked++;
+      } else if (r.status === 'timeout') {
+        summaryObj.timeout++;
+      }
+    } else {
+      results.push({
+        category: cdn.cat,
+        name: cdn.name,
+        status: 'pending',
+        detail: 'Not yet tested',
+        ms: null,
+        url: cdn.url
+      });
+      summaryObj.total++;
+    }
+  });
+
+  var exportData = {
+    timestamp: new Date().toISOString(),
+    results: results,
+    summary: summaryObj
+  };
+
+  var jsonStr = JSON.stringify(exportData, null, 2);
+
+  // Copy to clipboard
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(jsonStr).then(function() {
+      showToast('Copied!');
+    }, function() {
+      showToast('Download started');
+    });
+  } else {
+    showToast('Download started');
+  }
+
+  // Also offer download
+  var blob = new Blob([jsonStr], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'cdn-test-results-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg) {
+  var toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show';
+  setTimeout(function() {
+    toast.className = 'toast';
+  }, 2000);
+}
+
+function toggleGuide() {
+  var content = document.getElementById('guideContent');
+  var toggle = document.getElementById('guideToggle');
+  var isOpen = content.className.indexOf('open') !== -1;
+  if (isOpen) {
+    content.className = 'guide-content';
+    toggle.innerHTML = '&#9654; Provider Switching Guide';
+    toggle.style.borderRadius = '6px';
+  } else {
+    content.className = 'guide-content open';
+    toggle.innerHTML = '&#9660; Provider Switching Guide';
+    toggle.style.borderRadius = '6px 6px 0 0';
+  }
+}
+
+runAll();
+</script>
+</body>
+</html>

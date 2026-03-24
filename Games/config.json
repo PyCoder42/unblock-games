@@ -1,0 +1,9 @@
+{
+  "password": "supercoolpassword",
+  "passwords": [
+    "supercoolpassword"
+  ],
+  "blocked": {},
+  "games": ["admin-panel-fake","drive-mad","eaglercraft-1-12","escape-road-1","escape-road-2","gn-math","pokemon-showdown","smash-karts"],
+  "allowedIps": {}
+}

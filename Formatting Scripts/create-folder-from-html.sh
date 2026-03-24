@@ -14,8 +14,8 @@
 #
 # Options:
 #   --versions <csv>   Extra variants to generate in addition to base.
-#                      Allowed: open-in-new-tab,locked,locked-b64,base
-#                      Default: locked-b64
+#                      Allowed: open-in-new-tab,locked,locked-b64,secure,base
+#                      Default: locked,secure
 #   --folder <name>    Override destination folder name (under --root unless absolute path)
 #   --root <path>      Root folder for game folders (default: parent of script directory)
 #   --password <value> Password override for generated locked variants
@@ -33,7 +33,7 @@ LOCK_SCRIPT="$SCRIPT_DIR/lock-game.sh"
 ROOT_DIR="${SCRIPT_DIR:h}"
 
 INPUT=""
-VERSIONS_CSV="locked-b64"
+VERSIONS_CSV="locked,secure"
 FOLDER_OVERRIDE=""
 PASSWORD_OVERRIDE=""
 DRY_RUN="false"
@@ -44,8 +44,8 @@ Usage: ./create-folder-from-html.sh <input-file.html> [options]
 
 Options:
   --versions <csv>   Extra variants to generate (base is always created)
-                     Allowed values: open-in-new-tab,locked,locked-b64,base
-                     Default: locked-b64
+                     Allowed values: open-in-new-tab,locked,locked-b64,secure,base
+                     Default: locked,secure
   --folder <name>    Destination folder name (relative to --root unless absolute)
   --root <path>      Root directory for game folders (default: parent of script dir)
   --password <value> Password override for generated locked files
@@ -214,7 +214,7 @@ for raw in ${(s:,:)VERSIONS_CSV}; do
   norm="$(normalize_variant_kind "$raw")"
   if [[ -z "$norm" ]]; then
     err "Invalid version kind: $raw"
-    err "Allowed: open-in-new-tab,locked,locked-b64,base"
+    err "Allowed: open-in-new-tab,locked,locked-b64,secure,base"
     exit 1
   fi
   if [[ "$norm" == "base" ]]; then

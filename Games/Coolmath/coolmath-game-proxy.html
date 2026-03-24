@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+#setup{position:fixed;top:0;left:0;width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;z-index:10;font-family:-apple-system,system-ui,sans-serif;color:#e0e0e0}
+#setup.hidden{display:none}
+.box{text-align:center;max-width:500px;padding:2rem}
+.box h2{margin-bottom:1rem}
+.box input{width:100%;padding:0.6rem;background:#222;border:1px solid #444;border-radius:6px;color:#fff;font-size:1rem;margin-bottom:1rem}
+.box button{padding:0.6rem 1.5rem;border:none;border-radius:6px;background:#4a9eff;color:#fff;font-size:1rem;cursor:pointer}
+.box button:hover{background:#3a8eef}
+.box p{color:#888;font-size:0.85rem;margin-top:1rem}
+#game{width:100%;height:100%;border:none}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <div class="box">
+    <h2>Enter Proxy URL</h2>
+    <input id="proxyUrl" type="text" placeholder="https://game-proxy.YOUR-ACCOUNT.workers.dev" autofocus>
+    <br>
+    <button onclick="loadGame()">Play</button>
+    <p>Deploy Proxy/worker.js to Cloudflare Workers, then paste the URL above.</p>
+  </div>
+</div>
+
+<iframe id="game" allowfullscreen></iframe>
+
+<script>
+var GAME_URL = 'https://www.coolmathgames.com/sites/default/files/public_games/48544/';
+var STORAGE_KEY = 'proxy_worker_url';
+
+// Restore saved proxy URL
+(function() {
+  try {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) document.getElementById('proxyUrl').value = saved;
+  } catch(e) {}
+})();
+
+function loadGame() {
+  var base = document.getElementById('proxyUrl').value.trim().replace(/\/+$/, '');
+  if (!base) { alert('Enter your Worker URL'); return; }
+
+  // Save for next time
+  try { localStorage.setItem(STORAGE_KEY, base); } catch(e) {}
+
+  var src = base + '/' + GAME_URL;
+  document.getElementById('game').src = src;
+  document.getElementById('setup').className = 'hidden';
+}
+
+// Auto-load if URL was saved
+(function() {
+  try {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) loadGame();
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

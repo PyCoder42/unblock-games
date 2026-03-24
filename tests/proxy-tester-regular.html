@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proxy Tester</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, system-ui, sans-serif; background: #111; color: #e0e0e0; padding: 2rem; }
+    h1 { margin-bottom: 0.5rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; }
+    .config { background: #1a1a1a; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #333; }
+    .config label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+    .config input { width: 100%; padding: 0.5rem; background: #222; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 0.9rem; }
+    .tests { display: flex; flex-direction: column; gap: 1rem; }
+    .test-group { background: #1a1a1a; padding: 1rem; border-radius: 8px; border: 1px solid #333; }
+    .test-group h3 { margin-bottom: 0.75rem; }
+    .test { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid #222; }
+    .test:last-child { border-bottom: none; }
+    .status { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+    .status.pending { background: #333; }
+    .status.pass { background: #1a5c2a; }
+    .status.fail { background: #5c1a1a; }
+    .status.warn { background: #5c4a1a; }
+    .test-name { flex: 1; }
+    .test-url { font-size: 0.75rem; color: #666; word-break: break-all; }
+    .test-detail { font-size: 0.8rem; color: #aaa; }
+    button.run { padding: 0.75rem 2rem; border: none; border-radius: 8px; background: #4a9eff; color: #fff; font-size: 1rem; cursor: pointer; margin-bottom: 2rem; }
+    button.run:hover { background: #3a8eef; }
+    button.run:disabled { background: #333; cursor: not-allowed; }
+    .results-bar { margin-top: 2rem; padding: 1rem; background: #1a1a1a; border-radius: 8px; border: 1px solid #333; display: flex; gap: 2rem; }
+    .results-bar span { font-weight: 600; }
+    .pass-count { color: #4ade80; }
+    .fail-count { color: #f87171; }
+    .warn-count { color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <h1>Proxy Tester</h1>
+  <p class="subtitle">Tests your Cloudflare Worker proxy for basic functionality. Enter your Worker URL below.</p>
+
+  <div class="config">
+    <label for="workerUrl">Worker URL (e.g. https://game-proxy.YOUR-ACCOUNT.workers.dev)</label>
+    <input id="workerUrl" type="text" placeholder="https://game-proxy.your-account.workers.dev" value="">
+  </div>
+
+  <button class="run" onclick="runTests()">Run All Tests</button>
+
+  <div class="tests" id="testContainer"></div>
+
+  <div class="results-bar" id="resultsBar" style="display:none">
+    <span>Results:</span>
+    <span class="pass-count" id="passCount">0 passed</span>
+    <span class="fail-count" id="failCount">0 failed</span>
+    <span class="warn-count" id="warnCount">0 warnings</span>
+  </div>
+
+  <script>
+    // ── Test Definitions ────────────────────────────────────────
+
+    var TEST_GROUPS = [
+      {
+        name: 'Basic Connectivity',
+        tests: [
+          {
+            name: 'Landing page loads',
+            description: 'Worker returns HTML for root path',
+            run: function(base) {
+              return fetch(base + '/', { mode: 'cors' }).then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                  if (text.indexOf('Web Proxy') === -1) return { status: 'fail', detail: 'Landing page content missing' };
+                  return { status: 'pass', detail: 'HTTP ' + resp.status + ', landing page OK' };
+                });
+              });
+            }
+          },
+          {
+            name: 'CORS headers present',
+            description: 'Response includes Access-Control-Allow-Origin',
+            run: function(base) {
+              return fetch(base + '/https://example.com', { mode: 'cors' }).then(function(resp) {
+                var cors = resp.headers.get('Access-Control-Allow-Origin');
+                if (cors === '*') return { status: 'pass', detail: 'ACAO: *' };
+                if (cors) return { status: 'warn', detail: 'ACAO: ' + cors + ' (not wildcard)' };
+                return { status: 'fail', detail: 'No CORS header' };
+              });
+            }
+          }
+        ]
+      },
+      {
+        name: 'HTML Proxying',
+        tests: [
+          {
+            name: 'Proxy example.com',
+            description: 'Basic HTML page proxied successfully',
+            run: function(base) {
+              return fetch(base + '/https://example.com').then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                  if (text.indexOf('Example Domain') === -1) return { status: 'fail', detail: 'Content not proxied correctly' };
+                  return { status: 'pass', detail: 'Content proxied, ' + text.length + ' bytes' };
+                });
+              });
+            }
+          },
+          {
+            name: 'Link rewriting works',
+            description: 'Internal links rewritten to route through proxy',
+            run: function(base) {
+              return fetch(base + '/https://example.com').then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                  if (text.indexOf('href="' + base + '/') !== -1) return { status: 'pass', detail: 'Links rewritten to proxy' };
+                  if (text.indexOf('href="https://www.iana.org') !== -1) return { status: 'fail', detail: 'Links NOT rewritten (still direct)' };
+                  return { status: 'warn', detail: 'Could not verify link rewriting' };
+                });
+              });
+            }
+          },
+          {
+            name: 'Proxy Wikipedia',
+            description: 'Complex page with CSS/images',
+            run: function(base) {
+              return fetch(base + '/https://en.wikipedia.org/wiki/Main_Page').then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                  if (text.length < 1000) return { status: 'fail', detail: 'Response too small: ' + text.length + ' bytes' };
+                  return { status: 'pass', detail: text.length + ' bytes, page proxied' };
+                });
+              });
+            }
+          }
+        ]
+      },
+      {
+        name: 'Asset Proxying',
+        tests: [
+          {
+            name: 'CSS passthrough',
+            description: 'CSS files served with correct content type',
+            run: function(base) {
+              return fetch(base + '/https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css').then(function(resp) {
+                var ct = resp.headers.get('Content-Type') || '';
+                if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                if (ct.indexOf('css') === -1) return { status: 'warn', detail: 'Content-Type: ' + ct + ' (expected CSS)' };
+                return { status: 'pass', detail: 'CSS served, Content-Type: ' + ct };
+              });
+            }
+          },
+          {
+            name: 'Image passthrough',
+            description: 'Images served as binary with correct content type',
+            run: function(base) {
+              return fetch(base + '/https://www.google.com/favicon.ico').then(function(resp) {
+                var ct = resp.headers.get('Content-Type') || '';
+                if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                return resp.blob().then(function(blob) {
+                  if (blob.size < 10) return { status: 'fail', detail: 'Image too small: ' + blob.size + ' bytes' };
+                  return { status: 'pass', detail: blob.size + ' bytes, Content-Type: ' + ct };
+                });
+              });
+            }
+          }
+        ]
+      },
+      {
+        name: 'Game Sites',
+        tests: [
+          {
+            name: 'Proxy GN-Math homepage',
+            description: 'Game aggregation site loads through proxy',
+            run: function(base) {
+              return fetch(base + '/https://gn-math.github.io').then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                  if (text.length < 500) return { status: 'fail', detail: 'Response too small' };
+                  return { status: 'pass', detail: text.length + ' bytes, site loaded' };
+                });
+              });
+            }
+          },
+          {
+            name: 'Proxy Pokemon Showdown',
+            description: 'Future proxy target for Pokemon Showdown',
+            run: function(base) {
+              return fetch(base + '/https://play.pokemonshowdown.com').then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (!resp.ok) return { status: 'fail', detail: 'HTTP ' + resp.status };
+                  if (text.length < 500) return { status: 'fail', detail: 'Response too small' };
+                  return { status: 'pass', detail: text.length + ' bytes, site loaded' };
+                });
+              });
+            }
+          }
+        ]
+      },
+      {
+        name: 'Error Handling',
+        tests: [
+          {
+            name: 'Invalid URL returns landing page',
+            description: 'Malformed URL handled gracefully',
+            run: function(base) {
+              return fetch(base + '/not-a-url').then(function(resp) {
+                return resp.text().then(function(text) {
+                  if (text.indexOf('Web Proxy') !== -1) return { status: 'pass', detail: 'Showed landing page for invalid path' };
+                  if (resp.status === 400) return { status: 'pass', detail: 'HTTP 400 returned' };
+                  return { status: 'warn', detail: 'HTTP ' + resp.status + ', unexpected response' };
+                });
+              });
+            }
+          },
+          {
+            name: 'Unreachable host returns 502',
+            description: 'Connection failures handled',
+            run: function(base) {
+              return fetch(base + '/https://this-domain-definitely-does-not-exist-12345.com').then(function(resp) {
+                if (resp.status === 502) return { status: 'pass', detail: 'HTTP 502 returned for unreachable host' };
+                return { status: 'warn', detail: 'HTTP ' + resp.status + ' (expected 502)' };
+              });
+            }
+          }
+        ]
+      }
+    ];
+
+    // ── DOM Builder (safe, no innerHTML) ────────────────────────
+
+    function el(tag, attrs, children) {
+      var node = document.createElement(tag);
+      if (attrs) {
+        Object.keys(attrs).forEach(function(k) {
+          if (k === 'className') node.className = attrs[k];
+          else if (k === 'textContent') node.textContent = attrs[k];
+          else node.setAttribute(k, attrs[k]);
+        });
+      }
+      if (children) {
+        children.forEach(function(c) {
+          if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+          else if (c) node.appendChild(c);
+        });
+      }
+      return node;
+    }
+
+    // ── Test Rendering ─────────────────────────────────────────
+
+    function renderTests() {
+      var container = document.getElementById('testContainer');
+      while (container.firstChild) container.removeChild(container.firstChild);
+
+      TEST_GROUPS.forEach(function(group, gi) {
+        var groupDiv = el('div', { className: 'test-group' }, [
+          el('h3', { textContent: group.name })
+        ]);
+
+        group.tests.forEach(function(test, ti) {
+          var id = 'test-' + gi + '-' + ti;
+
+          var statusDiv = el('div', { className: 'status pending', id: id + '-status' });
+          var nameDiv = el('div', { className: 'test-name', textContent: test.name });
+          var descDiv = el('div', { className: 'test-url', textContent: test.description });
+          var detailDiv = el('div', { className: 'test-detail', id: id + '-detail' });
+
+          var infoDiv = el('div', null, [nameDiv, descDiv, detailDiv]);
+          var testDiv = el('div', { className: 'test', id: id }, [statusDiv, infoDiv]);
+
+          groupDiv.appendChild(testDiv);
+        });
+
+        container.appendChild(groupDiv);
+      });
+    }
+
+    // ── Test Runner ────────────────────────────────────────────
+
+    function runTests() {
+      var baseUrl = document.getElementById('workerUrl').value.trim().replace(/\/+$/, '');
+      if (!baseUrl) {
+        alert('Enter your Worker URL first');
+        return;
+      }
+
+      var btn = document.querySelector('button.run');
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+
+      renderTests();
+
+      var pass = 0, fail = 0, warn = 0;
+      var queue = [];
+
+      TEST_GROUPS.forEach(function(group, gi) {
+        group.tests.forEach(function(test, ti) {
+          queue.push({ gi: gi, ti: ti, test: test });
+        });
+      });
+
+      function runNext(idx) {
+        if (idx >= queue.length) {
+          document.getElementById('resultsBar').style.display = 'flex';
+          document.getElementById('passCount').textContent = pass + ' passed';
+          document.getElementById('failCount').textContent = fail + ' failed';
+          document.getElementById('warnCount').textContent = warn + ' warnings';
+          btn.disabled = false;
+          btn.textContent = 'Run All Tests';
+          return;
+        }
+
+        var item = queue[idx];
+        var id = 'test-' + item.gi + '-' + item.ti;
+        var statusEl = document.getElementById(id + '-status');
+        var detailEl = document.getElementById(id + '-detail');
+
+        item.test.run(baseUrl).then(function(result) {
+          statusEl.className = 'status ' + result.status;
+          statusEl.textContent = result.status === 'pass' ? '\u2713' : result.status === 'fail' ? '\u2717' : '!';
+          detailEl.textContent = result.detail || '';
+          if (result.status === 'pass') pass++;
+          else if (result.status === 'fail') fail++;
+          else warn++;
+        }).catch(function(err) {
+          statusEl.className = 'status fail';
+          statusEl.textContent = '\u2717';
+          detailEl.textContent = 'Error: ' + err.message;
+          fail++;
+        }).then(function() {
+          runNext(idx + 1);
+        });
+      }
+
+      runNext(0);
+    }
+
+    // Initial render
+    renderTests();
+  </script>
+</body>
+</html>

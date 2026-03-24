@@ -1,0 +1,430 @@
+<html>
+<head>
+<title>Smash Karts</title>
+<script src="https://cdn.jsdelivr.net/gh/Pok12d/ta@main/sma/jszip.js"></script>
+</head>
+<body>
+<h1 id="loadingg" style="color:#fff;font-family:Arial;text-align:center;background:#002B50;position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;margin:0;z-index:9999;flex-direction:column;">Loading Smash Karts...<div id="dbg" style="font-size:14px;margin-top:10px;color:#aaa;"></div></h1>
+<script>
+function _dbg(message) {
+  var debugNode = document.getElementById("dbg");
+  if (debugNode) debugNode.innerHTML += message + "<br>";
+  console.log("[SMK] " + message);
+}
+window.onerror = function(message, url, line) {
+  _dbg("ERR: " + message + " @" + line);
+  return false;
+};
+</script>
+<script>
+var BASE_URL = "https://cdn.jsdelivr.net/gh/Pok12d/ta@main/sma/";
+var BASE_ORIGIN = "https://cdn.jsdelivr.net/gh/Pok12d/ta@main/sma";
+var INNER_DOCUMENT_HTML = `<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<base href="https://cdn.jsdelivr.net/gh/Pok12d/ta@main/sma/">
+<script>
+// Install asset rewrites in the new document context.
+(function() {
+  var blobUrls = window._blobUrls || {};
+  var baseUrl = "https://cdn.jsdelivr.net/gh/Pok12d/ta@main/sma/";
+  var baseOrigin = "https://cdn.jsdelivr.net/gh/Pok12d/ta@main/sma";
+  var originalCreateElement = document.createElement.bind(document);
+  var originalSetAttribute = Element.prototype.setAttribute;
+  var originalFetch = window.fetch;
+  var originalOpen = XMLHttpRequest.prototype.open;
+  var OriginalAudio = window.Audio;
+
+  function extractFN(url) {
+    try {
+      return new URL(url, baseUrl).pathname.split("/").pop();
+    } catch (error) {
+      return String(url).split("/").pop();
+    }
+  }
+
+  function rewriteURL(url) {
+    if (typeof url !== "string") return url;
+    if (url.includes("prod/") && url.includes("common-v")) {
+      return baseUrl + "gamesettings/prod/360/common-v4.json";
+    }
+    if (url.startsWith("https://smashkarts.io")) {
+      return baseOrigin + url.slice("https://smashkarts.io".length);
+    }
+    if (url.startsWith("https://smashkartsgc.b-cdn.net")) {
+      return baseOrigin + url.slice("https://smashkartsgc.b-cdn.net".length);
+    }
+    var fileName = extractFN(url);
+    if (fileName.includes("?")) fileName = fileName.split("?")[0];
+    return blobUrls[fileName] || url;
+  }
+
+  function setPatchedUrl(element, attributeName, value) {
+    return originalSetAttribute.call(element, attributeName, rewriteURL(value));
+  }
+
+  document.createElement = function(tagName) {
+    var element = originalCreateElement(tagName);
+    if (String(tagName).toLowerCase() === "script") {
+      Object.defineProperty(element, "src", {
+        set: function(value) {
+          setPatchedUrl(element, "src", value);
+        },
+        get: function() {
+          return element.getAttribute("src");
+        },
+        configurable: true,
+      });
+    }
+    return element;
+  };
+
+  Element.prototype.setAttribute = function(name, value) {
+    if ((this.tagName === "SCRIPT" && name === "src") || (this.tagName === "LINK" && name === "href")) {
+      return setPatchedUrl(this, name, value);
+    }
+    if ((this.tagName === "IMG" || this.tagName === "AUDIO" || this.tagName === "VIDEO") && name === "src") {
+      return setPatchedUrl(this, name, value);
+    }
+    return originalSetAttribute.call(this, name, value);
+  };
+
+  [
+    [Image.prototype, "src"],
+    [HTMLScriptElement.prototype, "src"],
+    [HTMLLinkElement.prototype, "href"],
+    [typeof HTMLMediaElement === "undefined" ? null : HTMLMediaElement.prototype, "src"],
+  ].forEach(function(entry) {
+    if (!entry[0]) return;
+    var descriptor = Object.getOwnPropertyDescriptor(entry[0], entry[1]);
+    if (!descriptor || typeof descriptor.set !== "function") return;
+    Object.defineProperty(entry[0], entry[1], {
+      set: function(value) {
+        descriptor.set.call(this, rewriteURL(value));
+      },
+      get: descriptor.get,
+      configurable: true,
+      enumerable: true,
+    });
+  });
+
+  window.fetch = function(resource, init) {
+    if (typeof resource === "string") {
+      resource = rewriteURL(resource);
+    } else if (resource instanceof Request) {
+      resource = new Request(rewriteURL(resource.url), resource);
+    }
+    return originalFetch.call(this, resource, init);
+  };
+
+  XMLHttpRequest.prototype.open = function(method, url) {
+    arguments[1] = rewriteURL(url);
+    return originalOpen.apply(this, arguments);
+  };
+
+  window.Audio = function(src) {
+    var audio = new OriginalAudio();
+    if (src) audio.src = rewriteURL(src);
+    return audio;
+  };
+  window.Audio.prototype = OriginalAudio.prototype;
+
+  window.extractFN = extractFN;
+  window.rewriteURL = rewriteURL;
+})();
+<\/script>
+<script src="scripts/constants.js"><\/script>
+<meta charset="utf-8">
+<link rel="icon" href="images/favicon.png" sizes="16x16">
+<meta name="viewport" content="minimal-ui, user-scalable=no, initial-scale=1, maximum-scale=1, width=device-width, viewport-fit=cover">
+<title>Smash Karts<\/title>
+<link rel="stylesheet" href="css/main.css">
+<script src="scripts/ads-init.js"><\/script>
+<\/head>
+<body>
+<div id="mainContainer">
+  <div id="gameContainer">
+    <div id="gameCanvasWrapper">
+      <canvas id="gameCanvas"><\/canvas>
+    <\/div>
+    <div id="adContainerLoadingLeft"><\/div>
+    <div id="adContainerMainMenu"><\/div>
+    <div id="adContainerWin"><\/div>
+    <div id="adContainerSpectate"><\/div>
+    <div id="adContainerDeath"><\/div>
+  <\/div>
+  <div id="pw-video-container"><\/div>
+  <div id="preroll"><\/div>
+  <iframe id="xsolla-iframe"><\/iframe>
+<\/div>
+<div id="loader">
+  <img class="logo" src="images/smashkarts.png">
+  <div class="spinner"><\/div>
+  <div class="progress"><div class="full"><\/div><\/div>
+<\/div>
+<div id="rotate-landscape">
+  <img src="images/r.png" class="center">
+<\/div>
+
+<script>
+// Firebase mock (replaces gstatic.com scripts that would be blocked)
+var noop = function() {};
+var noopP = function() { return Promise.resolve(); };
+var mkSnap = function(value) {
+  return {
+    exists: function() { return value !== null && value !== undefined; },
+    val: function() { return value; },
+    key: "mock",
+    forEach: noop,
+    numChildren: function() { return 0; },
+    hasChildren: function() { return false; },
+    child: function() { return mkSnap(null); },
+  };
+};
+var mockRef = function() {
+  var ref = {
+    set: noopP,
+    on: function(eventName, callback) { if (callback) callback(mkSnap(null)); },
+    once: function() { return Promise.resolve(mkSnap(null)); },
+    child: function() { return mockRef(); },
+    push: function() { return { key: "mockkey", set: noopP }; },
+    remove: noopP,
+    update: noopP,
+    off: noop,
+    orderByChild: function() {
+      return {
+        equalTo: function() {
+          return {
+            once: function() { return Promise.resolve(mkSnap(null)); },
+          };
+        },
+      };
+    },
+    limitToLast: function() { return ref; },
+    limitToFirst: function() { return ref; },
+    startAt: function() { return ref; },
+    endAt: function() { return ref; },
+  };
+  return ref;
+};
+var mockUser = {
+  uid: "mock-uid-" + Math.random().toString(36).substr(2),
+  isAnonymous: true,
+  email: null,
+  displayName: null,
+};
+var mockFunctions = function() {
+  return {
+    httpsCallable: function() {
+      return function() {
+        return Promise.resolve({ data: null });
+      };
+    },
+  };
+};
+window.firebase = {
+  initializeApp: noop,
+  analytics: function() { return { logEvent: noop, setCurrentScreen: noop }; },
+  auth: function() {
+    return {
+      signInAnonymously: function() { return Promise.resolve({ user: mockUser }); },
+      onAuthStateChanged: function(callback) { if (callback) setTimeout(function() { callback(mockUser); }, 10); },
+      currentUser: mockUser,
+    };
+  },
+  database: function() { return { ref: function() { return mockRef(); } }; },
+  functions: mockFunctions,
+  app: function() { return { functions: mockFunctions }; },
+};
+window.gtag = noop;
+window.dataLayer = [];
+<\/script>
+
+<script src="scripts/main.js"><\/script>
+<script src="scripts/auth.js"><\/script>
+<script src="scripts/shop.js"><\/script>
+<script src="scripts/cc.js"><\/script>
+<script src="scripts/ads-common-logic.js"><\/script>
+<script src="scripts/ads-positioning-logic.js"><\/script>
+<script src="scripts/ads-injector.js"><\/script>
+
+<script>
+firebase.initializeApp({});
+analytics = firebase.analytics();
+if (typeof firebaseSetScreen === "undefined") window.firebaseSetScreen = noop;
+if (typeof firebaseLogEvent === "undefined") window.firebaseLogEvent = noop;
+if (typeof firebaseLogEventWithParam === "undefined") window.firebaseLogEventWithParam = noop;
+if (typeof updateAdBlockDetected === "undefined") window.updateAdBlockDetected = noop;
+if (typeof updateLoadingAdBanner === "undefined") window.updateLoadingAdBanner = noop;
+if (typeof setV === "undefined") window.setV = noop;
+
+updateAdBlockDetected();
+updateLoadingAdBanner();
+
+var mainContainer = document.querySelector("#mainContainer");
+var canvas = document.querySelector("#gameCanvas");
+var loadingBar = document.querySelector("#loader");
+var progressBarFull = document.querySelector("#loader .progress .full");
+var rotateLandscape = document.querySelector("#rotate-landscape");
+
+if (typeof isMobile === "function" && isMobile()) {
+  mainContainer.className = "unity-mobile";
+} else {
+  rotateLandscape.style.display = "none";
+}
+
+var progress = document.querySelector("#loader .progress");
+progress.style.display = "block";
+progressBarFull.style.width = "0%";
+
+var progressCreateUnityInstance = 0;
+var progressPostCreateUnityInstance = 0;
+var updateProgressInterval = setInterval(function() {
+  if (progressCreateUnityInstance > 85) {
+    progressPostCreateUnityInstance++;
+    setProgressWidth();
+  }
+}, 100);
+
+function setProgressWidth() {
+  if (progressCreateUnityInstance >= 100) {
+    progressBarFull.style.width = "100%";
+    return;
+  }
+  var percent = progressCreateUnityInstance * 0.9 + progressPostCreateUnityInstance * 0.1;
+  progressBarFull.style.width = Math.min(percent, 95) + "%";
+}
+
+var loaderScript = document.createElement("script");
+loaderScript.src = "Build/76f034cff49013ce85bd6945ebf32347.loader.js";
+loaderScript.onload = function() {
+  createUnityInstance(canvas, {
+    dataUrl: "Build/cde9b7051535319df292526442914c36.data.br",
+    frameworkUrl: "Build/ed690d1402dd39fcf7abb15b99effdea.framework.js.br",
+    codeUrl: "Build/250100c98afece1d27bb09b3a3d618ca.wasm.br",
+    streamingAssetsUrl: "StreamingAssets",
+    companyName: "TallTeam",
+    productName: "SmashKarts",
+    productVersion: "2.9.0",
+  }, function(progressValue) {
+    progressCreateUnityInstance = 100 * progressValue;
+    setProgressWidth();
+  }).then(function(unityInstance) {
+    if (typeof isMobile === "function" && isMobile()) document.body.style.background = "#000";
+    loadingBar.style.display = "none";
+    window.unityGame = unityInstance;
+    if (updateProgressInterval) clearInterval(updateProgressInterval);
+    try { unityInstance.SendMessage(unityFirebaseGameOjbectName, "SetDisplayAdProvider", displayAdProvider); } catch (error) {}
+    try { unityInstance.SendMessage(unityFirebaseGameOjbectName, "SetVideoAdProvider", videoAdProvider); } catch (error) {}
+  }).catch(function(error) {
+    console.error("Unity error:", error);
+  });
+};
+document.body.appendChild(loaderScript);
+<\/script>
+<\/body>
+<\/html>`;
+
+async function fetchAndCombineZip(binUrls) {
+  var responses = await Promise.all(binUrls.map(function(url) { return fetch(url); }));
+  var buffers = await Promise.all(responses.map(function(response) { return response.arrayBuffer(); }));
+  var totalLength = buffers.reduce(function(accumulator, buffer) { return accumulator + buffer.byteLength; }, 0);
+  var combined = new Uint8Array(totalLength);
+  var offset = 0;
+  buffers.forEach(function(buffer) {
+    combined.set(new Uint8Array(buffer), offset);
+    offset += buffer.byteLength;
+  });
+  return combined;
+}
+
+async function unzipFiles(binUrls) {
+  var blobUrls = {};
+  var bytes = await fetchAndCombineZip(binUrls);
+  var zip = await JSZip.loadAsync(bytes);
+  var entries = Object.entries(zip.files);
+  for (var index = 0; index < entries.length; index++) {
+    var filename = entries[index][0];
+    var file = entries[index][1];
+    if (!file.dir) {
+      var mime = "application/octet-stream";
+      if (filename.includes("250100c98afece1d27bb09b3a3d618ca")) mime = "application/wasm";
+      else if (filename.includes("ed690d1402dd39fcf7abb15b99effdea")) mime = "application/javascript";
+      else if (filename.endsWith(".js") || filename.endsWith(".mjs")) mime = "text/javascript";
+      else if (filename.endsWith(".css")) mime = "text/css";
+      else if (filename.endsWith(".png")) mime = "image/png";
+      else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) mime = "image/jpeg";
+      else if (filename.endsWith(".wasm")) mime = "application/wasm";
+      var rawBlob = await file.async("blob");
+      blobUrls[filename] = URL.createObjectURL(new Blob([rawBlob], { type: mime }));
+    }
+  }
+  return blobUrls;
+}
+
+if (typeof JSZip === "undefined") {
+  _dbg("JSZip tag failed, fetching dynamically...");
+  fetch(BASE_URL + "jszip.js").then(function(response) {
+    return response.text();
+  }).then(function(code) {
+    var script = document.createElement("script");
+    script.textContent = code;
+    document.head.appendChild(script);
+    _dbg("JSZip injected, typeof=" + typeof JSZip);
+    if (typeof JSZip !== "undefined") startGame();
+    else _dbg("FATAL: JSZip still undefined after inject");
+  }).catch(function(error) {
+    _dbg("FATAL: JSZip fetch failed: " + error.message);
+  });
+} else {
+  startGame();
+}
+
+function startGame() {
+  _dbg("JSZip loaded, fetching bins...");
+  unzipFiles([BASE_URL + "part_1.bin", BASE_URL + "part_2.bin"]).then(function(blobUrls) {
+    _dbg("Unzip done, " + Object.keys(blobUrls).length + " files");
+    document.getElementById("loadingg").remove();
+    window._blobUrls = blobUrls;
+
+    window.PokiSDK = {
+      init: function() { return Promise.resolve(); },
+      initWithVideoHB: function() { return Promise.resolve(); },
+      gameLoadingStart: function() {},
+      gameLoadingFinished: function() {},
+      gameLoadingProgress: function() {},
+      gameInteractive: function() {},
+      gameplayStart: function() {},
+      gameplayStop: function() {},
+      roundStart: function() {},
+      roundEnd: function() {},
+      displayAd: function() {},
+      destroyAd: function() {},
+      setDebug: function() {},
+      happyTime: function() {},
+      logError: function() {},
+      customEvent: function() {},
+      muteAd: function() {},
+      disableProgrammatic: function() {},
+      setPlayerAge: function() {},
+      togglePlayerAdvertisingConsent: function() {},
+      sendHighscore: function() {},
+      setDebugTouchOverlayController: function() {},
+      commercialBreak: function() { return Promise.resolve(); },
+      rewardedBreak: function() { return Promise.resolve(false); },
+      getLeaderboard: function() { return Promise.resolve(); },
+      getSharableURL: function() { return Promise.resolve(location.href); },
+      getURLParam: function() { return ""; },
+    };
+
+    document.open();
+    document.write(INNER_DOCUMENT_HTML);
+    document.close();
+  }).catch(function(error) {
+    _dbg("FATAL: " + error.message);
+    console.error("Smash Karts load error:", error);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,14 +1,14 @@
 #!/bin/zsh
 #
 # sync-protocol-versions.sh
-# Scan top-level folders and normalize HTML files to protocol variants.
+# Scan `Games/<Game Name>/` folders and normalize HTML files to protocol variants.
 #
-# Default keep set: base,locked-b64
+# Default keep set: base,secure
 #
 # Examples:
 #   ./sync-protocol-versions.sh
-#   ./sync-protocol-versions.sh --keep base,locked-b64 --dry-run
-#   ./sync-protocol-versions.sh --keep base,open-in-new-tab,locked,locked-b64 --force
+#   ./sync-protocol-versions.sh --keep base,secure --dry-run
+#   ./sync-protocol-versions.sh --keep base,open-in-new-tab,locked,secure --force
 
 set -euo pipefail
 
@@ -17,34 +17,37 @@ source "$SCRIPT_DIR/common.sh"
 
 check_dependencies
 
-KEEP_CSV="base,locked,secure"
+KEEP_CSV="base,secure"
 PASSWORD_OVERRIDE=""
 DRY_RUN="false"
 FORCE_REGENERATE="false"
 UPGRADE_BANNER="true"
 INCLUDE_DIRS=""
-EXCLUDE_DIRS="test-lock-converter,Formatting Scripts"
+EXCLUDE_DIRS=".git,.claude,node_modules,__MACOSX"
+IGNORE_FILES=""
 
 LOCK_SCRIPT="$SCRIPT_DIR/lock-game.sh"
-ROOT_DIR="${SCRIPT_DIR:h}"
+ROOT_DIR="${SCRIPT_DIR:h}/Games"
 
 usage() {
   cat <<'USAGE'
 Usage: ./sync-protocol-versions.sh [options]
 
 Options:
-  --root <path>        Root directory to scan (default: parent of script dir)
+  --root <path>        Repo root or Games directory to scan
+                       (default: parent of script dir, scanning its Games/)
   --keep <csv>         Variants to keep:
                        base,open-in-new-tab,locked,locked-b64,secure
-                       (default: base,locked-b64)
-  --password <value>   Override password for generated locked files
+                       (default: base,secure)
+  --password <value>   Override password for generated variants
   --dry-run            Print actions without changing files
   --force              Regenerate kept variants even if they already exist
   --upgrade-banner     Upgrade existing banner files to latest shared banner controls
                        (default: enabled)
   --no-upgrade-banner  Skip banner-upgrade pass
-  --include <csv>      Only process these top-level dirs
-  --exclude <csv>      Skip these top-level dirs
+  --include <csv>      Only process these Games/<Game Name> directories
+  --exclude <csv>      Skip these Games/<Game Name> directories
+  --ignore <csv>       Never delete these filenames (basename only, e.g. readme.html)
   --help               Show this help
 USAGE
 }
@@ -223,6 +226,11 @@ while [[ $# -gt 0 ]]; do
       EXCLUDE_DIRS="$2"
       shift 2
       ;;
+    --ignore)
+      [[ $# -ge 2 ]] || { err "--ignore requires a value"; exit 1; }
+      IGNORE_FILES="$2"
+      shift 2
+      ;;
     --help|-h)
       usage
       exit 0
@@ -237,6 +245,16 @@ done
 
 [[ -d "$ROOT_DIR" ]] || { err "Root directory not found: $ROOT_DIR"; exit 1; }
 [[ -x "$LOCK_SCRIPT" ]] || { err "lock-game.sh is missing or not executable: $LOCK_SCRIPT"; exit 1; }
+
+if [[ "${ROOT_DIR:t}" == "Games" ]]; then
+  GAMES_DIR="$ROOT_DIR"
+elif [[ -d "$ROOT_DIR/Games" ]]; then
+  GAMES_DIR="$ROOT_DIR/Games"
+else
+  err "Could not find a Games directory under: $ROOT_DIR"
+  err "Pass --root <repo-root> or --root <repo-root>/Games to limit scanning safely."
+  exit 1
+fi
 
 typeset -a KEEP_KINDS
 typeset -A KEEP_SEEN
@@ -257,14 +275,20 @@ if (( ${#KEEP_KINDS[@]} == 0 )); then
   exit 1
 fi
 
+# Always keep base files — they are the source of truth and must never be deleted.
+if [[ -z "${KEEP_SEEN[base]-}" ]]; then
+  KEEP_KINDS=("base" "${KEEP_KINDS[@]}")
+  KEEP_SEEN[base]=1
+fi
+
 # ── Main loop ────────────────────────────────────────────────────
 
-typeset -a TOP_DIRS
+typeset -a GAME_DIRS
 while IFS= read -r -d '' d; do
-  TOP_DIRS+=("$d")
-done < <(find "$ROOT_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+  GAME_DIRS+=("$d")
+done < <(find "$GAMES_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
-for dir in "${TOP_DIRS[@]}"; do
+for dir in "${GAME_DIRS[@]}"; do
   dir_name="${dir:t}"
   [[ "$dir_name" == .* ]] && continue
   if [[ -n "$INCLUDE_DIRS" ]] && ! csv_contains "$INCLUDE_DIRS" "$dir_name"; then
@@ -284,7 +308,7 @@ for dir in "${TOP_DIRS[@]}"; do
     continue
   fi
 
-  log "Processing folder: $dir_name"
+  log "Processing game folder: $dir_name"
 
   if [[ "$UPGRADE_BANNER" == "true" ]]; then
     for f in "${HTML_FILES[@]}"; do
@@ -407,7 +431,7 @@ for dir in "${TOP_DIRS[@]}"; do
     for kind in "${KEEP_KINDS[@]}"; do
       out_kind="$(keep_kind_to_variant_kind "$kind")"
       out="$(variant_path_for_group "$dir" "$group_key" "$out_kind")"
-      KEEP_PATHS[$out]=1
+      KEEP_PATHS[${out:A}]=1
       if [[ "$kind" == "base" ]]; then
         continue
       fi
@@ -416,11 +440,31 @@ for dir in "${TOP_DIRS[@]}"; do
       fi
       log "  base=$label: generating $kind"
       lock_generate "$reg_path" "$out_kind"
+      # After generation, also register the actual file path in case
+      # lock-game.sh wrote to a slightly different canonical path.
+      if [[ -f "$out" ]]; then
+        KEEP_PATHS[${out:A}]=1
+      fi
     done
   done
 
+  # Build a set of basenames to keep, as a secondary check.
+  typeset -A KEEP_BASENAMES
+  KEEP_BASENAMES=()
+  for kp in "${(@k)KEEP_PATHS}"; do
+    KEEP_BASENAMES[${kp:t}]=1
+  done
+
   while IFS= read -r -d '' f; do
-    if [[ -n "${KEEP_PATHS[$f]-}" ]]; then
+    local resolved="${f:A}"
+    if [[ -n "${KEEP_PATHS[$resolved]-}" ]]; then
+      continue
+    fi
+    # Fallback: match by basename in case canonical paths differ
+    if [[ -n "${KEEP_BASENAMES[${f:t}]-}" ]]; then
+      continue
+    fi
+    if [[ -n "$IGNORE_FILES" ]] && csv_contains "$IGNORE_FILES" "${f:t}"; then
       continue
     fi
     log "  removing extra file: ${f:t}"

@@ -6,4 +6,8 @@ node_modules/
 *.log
 .tmp.*/
 .secure-config
+.game-keys
 admin-panel.html
+/.claude/
+/Admin Panel/.claude/
+/Proxy/node_modules/
