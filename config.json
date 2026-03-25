@@ -3,7 +3,10 @@
   "passwords": [
     "supercoolpassword"
   ],
-  "blocked": {},
+  "blocked": {
+    "gn-math": true,
+    "mr-mine": true
+  },
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
