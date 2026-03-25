@@ -3,9 +3,7 @@
   "passwords": [
     "supercoolpassword"
   ],
-  "blocked": {
-    "mr-mine": true
-  },
+  "blocked": {},
   "games": [
     "drive-mad",
     "eaglercraft-1-12",
@@ -24,9 +22,6 @@
     },
     "71.135.212.47": {
       "label": "Me (ChromeBook -- Demdem)"
-    },
-    "192.150.244.11": {
-      "label": "Me (ChromeBook)"
     }
   }
 }
