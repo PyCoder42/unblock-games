@@ -4,8 +4,7 @@
     "supercoolpassword"
   ],
   "blocked": {
-    "mr-mine": true,
-    "smash-karts": true
+    "mr-mine": true
   },
   "games": [
     "drive-mad",
