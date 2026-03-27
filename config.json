@@ -5,7 +5,8 @@
   ],
   "blocked": {
     "smash-karts": true,
-    "mr-mine": true
+    "mr-mine": true,
+    "eaglercraft-1-12": true
   },
   "games": [
     "drive-mad",
